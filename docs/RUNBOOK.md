@@ -13,14 +13,28 @@ Verify: `redis-cli ping` → `PONG`.
 
 ## 2. ArduPilot SITL (ArduCopter)
 
+Run this in your own Terminal (it opens real GUI windows — don't run it
+through anything headless):
+
 ```bash
+source /Users/nghia/ardupilot-venv/bin/activate   # sim_vehicle.py's deps (pexpect, MAVProxy, pymavlink) live here
 cd /Users/nghia/ardupilot
-Tools/autotest/sim_vehicle.py -v ArduCopter -L CMAC --console --out=udp:127.0.0.1:14560
+Tools/autotest/sim_vehicle.py -v ArduCopter -L CMAC --console --map --out=udp:127.0.0.1:14560
 ```
 
+(equivalently: `scripts/start_sitl.sh`)
+
 Add `-w` on the very first run only, to wipe EEPROM to defaults. Leave this
-running — it opens a MAVProxy console showing heartbeats, mode changes, and
-arming messages, useful for cross-checking the dashboard.
+running — it opens two windows you can watch live:
+
+- **MAVProxy console** — text log of heartbeats, mode changes, and arming
+  messages, useful for cross-checking the dashboard.
+- **Map window** — a live map with the vehicle icon and its GPS track, so
+  you can visually watch the drone move during Takeoff/RTL.
+
+If no window appears, `sim_vehicle.py` is being run without a display
+(e.g. over SSH or inside a headless shell) — it needs an actual local
+Terminal session on your Mac to open GUI windows.
 
 ## 3. Backend
 
