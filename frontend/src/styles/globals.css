@@ -23,9 +23,30 @@ button {
 }
 
 .app-shell {
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: var(--space-6) var(--space-5) var(--space-6);
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-header {
@@ -55,13 +76,6 @@ button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
 }
 
 .metric-label {
@@ -267,11 +281,29 @@ button {
   margin-bottom: var(--space-4);
 }
 
-.search-map {
-  height: 320px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+.map-card {
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.main-map {
+  height: min(560px, 62vh);
+  width: 100%;
+}
+
+.flight-state-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.compass-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 /* Default Leaflet marker is blue; shift hue to tell the three pins apart. */
@@ -299,13 +331,9 @@ button {
   transform-origin: center center;
 }
 
-.search-map-wrapper {
-  position: relative;
-}
-
-/* QGroundControl-style compass instrument overlaid on the map corner.
-   pointer-events: none so it never intercepts map drag/click (used for
-   picking a search point) - it's purely a readout. */
+/* QGroundControl-style compass instrument. Default form overlays the map
+   corner (pointer-events: none so it never intercepts map drag/click);
+   .compass-standalone is used instead when it's shown in its own card. */
 .compass-widget {
   position: absolute;
   top: 12px;
@@ -317,6 +345,11 @@ button {
   align-items: center;
   gap: 2px;
   filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
+}
+
+.compass-widget.compass-standalone {
+  position: static;
+  pointer-events: auto;
 }
 
 .compass-heading {

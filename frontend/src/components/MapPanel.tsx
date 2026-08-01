@@ -3,10 +3,8 @@ import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
-import { useEffect, useRef, useState } from "react";
-import { droneApi } from "../api/client";
-import type { CommandResult, TelemetryState } from "../types/telemetry";
-import { CompassWidget } from "./CompassWidget";
+import { useEffect, useRef } from "react";
+import type { TelemetryState } from "../types/telemetry";
 
 // Vite bundles Leaflet's default marker images under a hashed path that its
 // built-in CSS doesn't know about — point the default icon at the imported
@@ -50,28 +48,30 @@ const vehicleIcon = L.divIcon({
   iconAnchor: [15, 15],
 });
 
-export function SearchPanel({
+export function MapPanel({
   telemetry,
-  connected,
-  onResult,
+  searchModeOn,
+  pendingPoint,
+  onMapClick,
 }: {
   telemetry: TelemetryState | null;
-  connected: boolean;
-  onResult: (result: CommandResult) => void;
+  searchModeOn: boolean;
+  pendingPoint: { lat: number; lon: number } | null;
+  onMapClick: (point: { lat: number; lon: number }) => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const vehicleMarkerRef = useRef<L.Marker | null>(null);
   const pendingMarkerRef = useRef<L.Marker | null>(null);
   const targetMarkerRef = useRef<L.Marker | null>(null);
+  // The click handler below is registered once, when the map is created, so
+  // it closes over stale props on every re-render — read the live value via
+  // a ref instead of depending on searchModeOn directly.
+  const searchModeOnRef = useRef(searchModeOn);
 
-  const [searchModeOn, setSearchModeOn] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<{ lat: number; lon: number } | null>(null);
-  const [searchAltitude, setSearchAltitude] = useState(15);
-  const [busy, setBusy] = useState(false);
-
-  const armed = telemetry?.armed ?? false;
-  const canStartSearch = connected && armed && pendingPoint !== null && !busy;
+  useEffect(() => {
+    searchModeOnRef.current = searchModeOn;
+  }, [searchModeOn]);
 
   // Create the map once.
   useEffect(() => {
@@ -84,10 +84,9 @@ export function SearchPanel({
       maxZoom: 19,
     }).addTo(map);
     map.on("click", (e: L.LeafletMouseEvent) => {
-      setSearchModeOn((on) => {
-        if (on) setPendingPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
-        return on;
-      });
+      if (searchModeOnRef.current) {
+        onMapClick({ lat: e.latlng.lat, lon: e.latlng.lng });
+      }
     });
     mapRef.current = map;
     return () => {
@@ -154,91 +153,9 @@ export function SearchPanel({
     }
   }, [telemetry?.search_target_lat, telemetry?.search_target_lon]);
 
-  async function startSearch() {
-    if (!pendingPoint) return;
-    setBusy(true);
-    try {
-      const result = await droneApi.search(pendingPoint.lat, pendingPoint.lon, searchAltitude);
-      onResult(result);
-      if (result.success) setPendingPoint(null);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function toggleSearchMode() {
-    const turningOff = searchModeOn;
-    setSearchModeOn((on) => !on);
-    if (!turningOff) return;
-    setPendingPoint(null);
-    if (telemetry?.search_target_lat == null) return;
-    setBusy(true);
-    try {
-      const result = await droneApi.cancelSearch();
-      onResult(result);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const hasActiveTarget = telemetry?.search_target_lat != null;
-  const statusText = hasActiveTarget ? (telemetry?.search_arrived ? "At search point" : "Heading to search point…") : null;
-
   return (
-    <div className="card">
-      <div className="section-title">Search area</div>
-      <div className="command-panel" style={{ marginBottom: "var(--space-3)" }}>
-        <button
-          className={searchModeOn ? "btn btn-primary" : "btn"}
-          disabled={(!connected || !armed) && !searchModeOn}
-          onClick={toggleSearchMode}
-        >
-          {searchModeOn ? "Search Mode: On" : "Search Mode"}
-        </button>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)", fontSize: "0.875rem" }}>
-          Altitude to search
-          <input
-            className="dialog-input"
-            style={{ width: 72, margin: 0 }}
-            type="number"
-            min={2}
-            max={120}
-            value={searchAltitude}
-            onChange={(e) => setSearchAltitude(Number(e.target.value))}
-          />
-          m
-        </label>
-        <button className="btn btn-primary" disabled={!canStartSearch} onClick={startSearch}>
-          Start Search
-        </button>
-        {statusText && <StatusText text={statusText} />}
-      </div>
-      {searchModeOn && (
-        <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-          Click a point on the map to select the search target. Starting a search takes off (if not already
-          airborne) to the altitude set above, flies there, and holds position.
-        </p>
-      )}
-      <div className="search-map-wrapper">
-        <div ref={mapContainerRef} className="search-map" />
-        <CompassWidget heading={telemetry?.heading ?? null} />
-      </div>
+    <div className="map-card">
+      <div ref={mapContainerRef} className="main-map" />
     </div>
-  );
-}
-
-function StatusText({ text }: { text: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: "0.8125rem",
-        color: "var(--color-text-muted)",
-        marginLeft: "var(--space-2)",
-      }}
-    >
-      {text}
-    </span>
   );
 }

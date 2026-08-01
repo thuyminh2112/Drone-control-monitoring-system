@@ -15,12 +15,20 @@ function polar(angleDeg: number, radius: number, cx = 50, cy = 50) {
 // the vehicle drawn as a rotating chevron at the center pointing along the
 // current heading — same shape as the map marker, recolored into a
 // glowing cyan "instrument" palette instead of the marker's orange.
-export function CompassWidget({ heading }: { heading: number | null }) {
+export function CompassWidget({
+  heading,
+  size = 92,
+  standalone = false,
+}: {
+  heading: number | null;
+  size?: number;
+  standalone?: boolean;
+}) {
   const hdg = heading ?? 0;
 
   return (
-    <div className="compass-widget">
-      <svg viewBox="0 0 100 100" width="92" height="92">
+    <div className={standalone ? "compass-widget compass-standalone" : "compass-widget"}>
+      <svg viewBox="0 0 100 100" width={size} height={size}>
         <defs>
           <radialGradient id="compassFace" cx="50%" cy="42%" r="65%">
             <stop offset="0%" stopColor="#132b3d" />

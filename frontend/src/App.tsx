@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
-import { AltitudePanel } from "./components/AltitudePanel";
-import { ArmedIndicator } from "./components/ArmedIndicator";
-import { BatteryGauge } from "./components/BatteryGauge";
 import { CommandPanel } from "./components/CommandPanel";
-import { FlightModeBadge } from "./components/FlightModeBadge";
-import { GpsPanel } from "./components/GpsPanel";
+import { CompassWidget } from "./components/CompassWidget";
+import { FlightStatePanel } from "./components/FlightStatePanel";
 import { Header } from "./components/Header";
-import { SearchPanel } from "./components/SearchPanel";
+import { MapPanel } from "./components/MapPanel";
+import { SearchCommands } from "./components/SearchCommands";
 import { useTelemetry } from "./hooks/useTelemetry";
 import type { CommandResult } from "./types/telemetry";
 
 export default function App() {
   const { telemetry, status } = useTelemetry();
   const [toast, setToast] = useState<CommandResult | null>(null);
+  const [searchModeOn, setSearchModeOn] = useState(false);
+  const [pendingPoint, setPendingPoint] = useState<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -24,20 +24,35 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Header connected={connected} wsStatus={status} />
+      <Header />
 
-      <div className="grid">
-        <BatteryGauge percent={telemetry?.battery_percent ?? null} voltage={telemetry?.battery_voltage ?? null} />
-        <AltitudePanel altRelative={telemetry?.alt_relative ?? null} groundspeed={telemetry?.groundspeed ?? null} />
-        <GpsPanel lat={telemetry?.lat ?? null} lon={telemetry?.lon ?? null} />
-        <FlightModeBadge mode={telemetry?.flight_mode ?? "UNKNOWN"} />
-        <ArmedIndicator armed={telemetry?.armed ?? false} />
-      </div>
+      <div className="main-layout">
+        <div className="left-column">
+          <MapPanel
+            telemetry={telemetry}
+            searchModeOn={searchModeOn}
+            pendingPoint={pendingPoint}
+            onMapClick={setPendingPoint}
+          />
+          <CommandPanel telemetry={telemetry} connected={connected} onResult={setToast} />
+          <SearchCommands
+            telemetry={telemetry}
+            connected={connected}
+            searchModeOn={searchModeOn}
+            setSearchModeOn={setSearchModeOn}
+            pendingPoint={pendingPoint}
+            setPendingPoint={setPendingPoint}
+            onResult={setToast}
+          />
+        </div>
 
-      <CommandPanel telemetry={telemetry} connected={connected} onResult={setToast} />
-
-      <div style={{ marginTop: "var(--space-4)" }}>
-        <SearchPanel telemetry={telemetry} connected={connected} onResult={setToast} />
+        <div className="right-column">
+          <FlightStatePanel telemetry={telemetry} wsStatus={status} />
+          <div className="card compass-card">
+            <div className="section-title">Compass</div>
+            <CompassWidget heading={telemetry?.heading ?? null} size={168} standalone />
+          </div>
+        </div>
       </div>
 
       {toast && <div className={`toast ${toast.success ? "" : "error"}`}>{toast.message}</div>}
