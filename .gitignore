@@ -1,0 +1,26 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# Redis dump (if redis-server is launched from within the repo)
+dump.rdb
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# ArduPilot SITL artifacts (if run from within this repo)
+*.parm
+eeprom.bin
+logs/
+terrain/
