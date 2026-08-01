@@ -282,3 +282,19 @@ button {
 .marker-target {
   filter: hue-rotate(295deg) saturate(1.6);
 }
+
+/* Vehicle marker: a heading-pointing chevron (QGroundControl-style) instead
+   of a plain dot. Leaflet's default divIcon box (white bg + border) is
+   cleared so only the SVG shows; the inner div is what actually rotates,
+   since Leaflet owns the outer element's own position transform. */
+.leaflet-div-icon.vehicle-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.vehicle-marker-rotate {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.15s linear;
+  transform-origin: center center;
+}

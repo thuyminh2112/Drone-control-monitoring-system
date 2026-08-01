@@ -32,6 +32,23 @@ const targetIcon = new L.Icon({
   className: "marker-target",
 });
 
+// Heading-pointing chevron, the same style GCS software like QGroundControl
+// uses for the vehicle marker, instead of a plain dot. The wrapper div is
+// rotated on each telemetry update (see the vehicle marker effect below);
+// Leaflet owns the outer positioning transform on the icon element itself,
+// so the rotation has to live on this separate inner element.
+const vehicleIcon = L.divIcon({
+  className: "vehicle-marker-icon",
+  html:
+    '<div class="vehicle-marker-rotate">' +
+    '<svg width="30" height="30" viewBox="0 0 24 24">' +
+    '<path d="M12 2 L20.5 20 L12 15.5 L3.5 20 Z" fill="#c15f3c" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>' +
+    "</svg>" +
+    "</div>",
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
+
 export function SearchPanel({
   telemetry,
   connected,
@@ -43,7 +60,7 @@ export function SearchPanel({
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const vehicleMarkerRef = useRef<L.CircleMarker | null>(null);
+  const vehicleMarkerRef = useRef<L.Marker | null>(null);
   const pendingMarkerRef = useRef<L.Marker | null>(null);
   const targetMarkerRef = useRef<L.Marker | null>(null);
 
@@ -79,21 +96,16 @@ export function SearchPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep the vehicle's live position marker in sync with telemetry, and pan
-  // the map to follow it once it flies outside the current view (without
-  // fighting the operator's own manual pan/zoom while it's still in view).
+  // Keep the vehicle's live position marker in sync with telemetry, rotate
+  // it to point along the current heading, and pan the map to follow it
+  // once it flies outside the current view (without fighting the
+  // operator's own manual pan/zoom while it's still in view).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || telemetry?.lat == null || telemetry?.lon == null) return;
     const pos: [number, number] = [telemetry.lat, telemetry.lon];
     if (!vehicleMarkerRef.current) {
-      vehicleMarkerRef.current = L.circleMarker(pos, {
-        radius: 7,
-        color: "#c15f3c",
-        fillColor: "#c15f3c",
-        fillOpacity: 1,
-        weight: 2,
-      })
+      vehicleMarkerRef.current = L.marker(pos, { icon: vehicleIcon, zIndexOffset: 1000 })
         .bindTooltip("Vehicle")
         .addTo(map);
       map.panTo(pos);
@@ -103,7 +115,9 @@ export function SearchPanel({
         map.panTo(pos);
       }
     }
-  }, [telemetry?.lat, telemetry?.lon]);
+    const rotateEl = vehicleMarkerRef.current.getElement()?.querySelector<HTMLElement>(".vehicle-marker-rotate");
+    if (rotateEl) rotateEl.style.transform = `rotate(${telemetry.heading ?? 0}deg)`;
+  }, [telemetry?.lat, telemetry?.lon, telemetry?.heading]);
 
   // Marker for the point the operator just clicked but hasn't sent yet.
   useEffect(() => {
