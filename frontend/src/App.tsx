@@ -44,7 +44,6 @@ export default function App() {
 
           <div className="compass-vehicle-row">
             <div className="card compass-card">
-              <div className="section-title">Compass</div>
               <CompassWidget heading={telemetry?.heading ?? null} size={126} standalone />
             </div>
             <VehicleCard iconSize={126} />
