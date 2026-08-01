@@ -20,12 +20,18 @@ function formatElapsed(totalSeconds: number): string {
   return `${pad2(minutes)}:${pad2(seconds)}`;
 }
 
-function BatteryIcon({ color }: { color: string }) {
+// Fill bar width scales with the actual charge level (not just a fixed
+// full-looking bar recolored by threshold), so the icon reads correctly at
+// a glance even before the percentage text registers.
+function BatteryIcon({ percent, color }: { percent: number | null; color: string }) {
+  const pct = percent == null ? 0 : Math.max(0, Math.min(100, percent));
+  const fillWidth = (pct / 100) * 12;
   return (
     <svg className="battery-icon" width="20" height="12" viewBox="0 0 20 12" fill="none">
       <rect x="0.5" y="0.5" width="16" height="11" rx="1.5" stroke={color} />
       <rect x="17.5" y="4" width="2" height="4" rx="0.5" fill={color} />
-      <rect x="2" y="2" width="12" height="8" rx="0.5" fill={color} opacity="0.5" />
+      <rect x="2" y="2" width="12" height="8" rx="0.5" fill="none" stroke={color} strokeOpacity="0.3" />
+      {fillWidth > 0 && <rect x="2" y="2" width={fillWidth} height="8" rx="0.5" fill={color} />}
     </svg>
   );
 }
@@ -95,7 +101,7 @@ export function FlightStatePanel({ telemetry, wsStatus }: { telemetry: Telemetry
           <div>
             <div className="metric-label">Battery</div>
             <div className="metric-value" style={{ color: batteryColor }}>
-              <BatteryIcon color={batteryColor} />
+              <BatteryIcon percent={battery} color={batteryColor} />
               {battery == null ? "—" : `${battery.toFixed(0)}%`}
             </div>
             {telemetry?.battery_voltage != null && (
