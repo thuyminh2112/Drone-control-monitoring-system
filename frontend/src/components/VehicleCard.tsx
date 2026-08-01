@@ -1,9 +1,9 @@
 // Simple quadcopter frame glyph (center body, 4 arms, 4 rotors) - matches
 // this project's actual SITL configuration (ArduCopter's default "quad" X
 // frame), not a decorative stand-in for an unknown vehicle type.
-function QuadIcon() {
+function QuadIcon({ size = 44 }: { size?: number }) {
   return (
-    <svg width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <line x1="24" y1="24" x2="9" y2="9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       <line x1="24" y1="24" x2="39" y2="9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       <line x1="24" y1="24" x2="9" y2="39" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
@@ -17,17 +17,15 @@ function QuadIcon() {
   );
 }
 
-export function VehicleCard() {
+export function VehicleCard({ iconSize = 126 }: { iconSize?: number }) {
   return (
     <div className="card vehicle-card">
-      <div className="vehicle-card-info">
-        <div className="metric-label">Vehicle</div>
-        <div className="vehicle-name">vehicle-1</div>
-        <div className="vehicle-type">ArduCopter SITL · Quad</div>
-      </div>
+      <div className="metric-label">Vehicle</div>
+      <div className="vehicle-name">vehicle-1</div>
       <div className="vehicle-frame-icon">
-        <QuadIcon />
+        <QuadIcon size={iconSize} />
       </div>
+      <div className="vehicle-type">ArduCopter SITL · Quad</div>
     </div>
   );
 }
