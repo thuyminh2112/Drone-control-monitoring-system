@@ -1,5 +1,7 @@
 # SAR Mission Control — Drone Control & Monitoring System
 
+[![GitHub repo](https://img.shields.io/badge/GitHub-thuyminh2112%2FDrone--control--monitoring--system-181717?logo=github)](https://github.com/thuyminh2112/Drone-control-monitoring-system)
+
 A small prototype ground control station (GCS) for a Search & Rescue (SAR)
 drone mission. A single simulated ArduCopter (ArduPilot SITL) stands in for
 a drone searching a disaster-struck area for survivors. An operator watches
