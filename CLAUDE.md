@@ -79,7 +79,7 @@ Data flows one direction, through Redis, to any number of browser clients:
 ArduCopter SITL --MAVLink/UDP--> mavlink_client.py (bg thread) --> redis_bridge.py --Redis pub/sub--> /ws/telemetry --> React dashboard
                                          ^
                                          | (command queue, blocking call from asyncio.to_thread)
-                            routers/commands.py (POST /api/drone/arm|disarm|takeoff|rtl)
+                    routers/commands.py (POST /api/drone/arm|disarm|takeoff|land|rtl|search|mission/start|mission/cancel)
 ```
 
 - **`backend/app/mavlink_client.py`** — the single source of truth for
@@ -99,6 +99,45 @@ ArduCopter SITL --MAVLink/UDP--> mavlink_client.py (bg thread) --> redis_bridge.
     this pattern if you add more state-dependent commands.
   - Heartbeat timeout (`settings.heartbeat_timeout_seconds`, default 5s) is
     what flips `connected` to `false` — independent of socket-level errors.
+  - **Waypoint Mission** (`_cmd_mission_start`/`_upload_mission`) uploads a
+    real multi-waypoint route via the MAVLink mission protocol
+    (MISSION_COUNT → answer each MISSION_REQUEST_INT with MISSION_ITEM_INT →
+    MISSION_ACK) and switches to AUTO, instead of the old single-point
+    GUIDED "fly to and hold" (`_cmd_search`, still present but no longer
+    wired to any frontend UI). Mission item seq 0 is reserved by ArduPilot
+    for the home position (`AP_MISSION_FIRST_REAL_COMMAND`) — real commands
+    must start at seq 1, or AUTO's takeoff-command scan fails with
+    "Missing Takeoff Cmd" even if a real NAV_TAKEOFF item is sitting at
+    seq 0. `_mission_seq_offset` tracks how many synthetic items (home,
+    and takeoff when grounded) were prepended, so `MISSION_CURRENT` can be
+    translated back into a 0-indexed position in `mission_waypoints` for
+    the frontend. An optional trailing `MAV_CMD_NAV_RETURN_TO_LAUNCH` item
+    (`return_to_home`) makes the vehicle fly home and land on its own after
+    the last waypoint — its `param4` must be `0`, not `NaN` (unlike
+    NAV_WAYPOINT/NAV_TAKEOFF, where `NaN` means "keep current yaw"), or
+    ArduCopter rejects the whole upload with `MAV_MISSION_INVALID_PARAM4`.
+  - Three ArduCopter parameters are force-configured over PARAM_SET on
+    every (re)connect, each confirmed via the PARAM_VALUE echo rather than
+    assumed (PARAM_SET is fire-and-forget over UDP) — see
+    `_ensure_rtl_alt_configured`/`_ensure_auto_options_configured`/
+    `_ensure_wp_yaw_behavior_configured`:
+    - `RTL_ALT_M`/`RTL_ALT` = 0 — RTL holds current altitude home instead
+      of first climbing to a fixed ~15m (the parameter was renamed
+      `RTL_ALT`→`RTL_ALT_M` in a metric-units migration; both are set for
+      cross-version compatibility).
+    - `AUTO_OPTIONS` bit 1 (`AllowTakeOffWithoutRaisingThrottle`) — without
+      it, AUTO's takeoff item waits forever for RC throttle input that a
+      MAVLink-only GCS never provides, and the vehicle just sits armed on
+      the ground until `DISARM_DELAY` kicks in.
+    - `WP_YAW_BEHAVIOR` = 1 (`LOOK_AT_NEXT_WP`) — the ArduCopter default
+      (`LOOK_AT_NEXT_WP_EXCEPT_RTL` = 2) deliberately holds the last
+      heading during any RTL leg, including a mission's trailing
+      `RETURN_TO_LAUNCH` item, instead of turning to face the direction
+      of travel like it does for ordinary waypoints.
+  - `HOME_POSITION` is only broadcast once, shortly after the EKF origin is
+    set — `_ensure_home_position` explicitly requests it (retrying, since
+    the request is fire-and-forget) so the frontend's home marker doesn't
+    depend on catching that one broadcast at exactly the right moment.
 
 - **`backend/app/redis_bridge.py`** — every telemetry tick (~2Hz, driven by
   `services/telemetry_publisher.py`) is both cached (`SET drone:latest_state`)
@@ -125,11 +164,40 @@ ArduCopter SITL --MAVLink/UDP--> mavlink_client.py (bg thread) --> redis_bridge.
   WebSocket client; it exposes `{telemetry, status}` with exponential
   backoff reconnect. Dashboard components in `components/` are each a thin,
   mostly presentational wrapper around one telemetry field. `CommandPanel.tsx`
-  is the one place that calls `api/client.ts`'s REST helpers, and wraps
-  destructive actions (RTL, in-air Disarm) in `ConfirmDialog.tsx`. Styling
-  is hand-rolled CSS custom properties in `styles/tokens.css` (light/dark via
+  is the one place that calls `api/client.ts`'s REST helpers. Land/RTL/in-air
+  Disarm confirmations use the browser's own `window.confirm()`, not a
+  custom dialog component (`ConfirmDialog.tsx` still exists and is used for
+  in-air Disarm) — a custom `ConfirmDialog` overlay for Land/RTL mysteriously
+  never rendered despite the click handlers firing correctly and no CSS
+  overlay blocking the buttons (never root-caused; `window.confirm()`
+  sidesteps it entirely and has been reliable since). Styling is hand-rolled
+  CSS custom properties in `styles/tokens.css` (light/dark via
   `prefers-color-scheme`) plus utility classes in `styles/globals.css` — no
   CSS framework or component library.
+  - **`MissionPlanCard.tsx`** — "Waypoint Mission" planning UI: toggling it
+    on lets the operator click multiple map points (each carrying the
+    current altitude input) into an ordered, removable list; "Return to
+    Home" toggle is sent as `return_to_home` on `POST /mission/start`.
+    "Grid Survey"/"Orbit & Loiter" are shown disabled ("Coming soon") — no
+    backend support, and a clickable no-op would be worse than an honest
+    disabled state.
+  - **`MapPanel.tsx`** — draws, as separate Leaflet layers/refs so each can
+    be redrawn independently: the vehicle chevron marker (red, rotates with
+    heading); a draggable house-icon "planned home" marker shown only while
+    `missionPlanningOn` (its position feeds the planned route line, but
+    dragging it does **not** call `MAV_CMD_DO_SET_HOME` — it's planning-only
+    today); a fixed, non-draggable home marker shown while
+    `telemetry.mission_active`; the planned route (light-blue dashed,
+    home → waypoints → home if "Return to Home" is on) and the
+    active-mission route (black dashed, same shape, driven by
+    `telemetry.mission_waypoints`/`mission_return_to_home`); and a red
+    flight-trace polyline that accumulates the vehicle's actual GPS history,
+    resetting on the disarmed→armed transition. Because the route layers
+    get fully cleared and redrawn on every waypoint/mission change, they
+    can re-insert themselves above the trace in the shared SVG stacking
+    order — both route-drawing effects call `traceLineRef.current?.bringToFront()`
+    after redrawing themselves so the trace stays visually on top
+    regardless of which effect last touched the DOM.
 
 ## Known ArduCopter/SITL behavior (not bugs)
 
