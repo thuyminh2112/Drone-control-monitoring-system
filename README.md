@@ -46,9 +46,10 @@ commands to run everything locally.
 - Altitude
 - Flight mode
 - Armed / disarmed status
-- Commands: Arm, Disarm, Takeoff, Return to Launch (RTL — holds current
-  altitude on the way home, then descends once over the launch point; see
-  below)
+- Commands: Arm, Disarm, Takeoff, Land (descends straight down at the
+  vehicle's current position — unlike RTL, it does not fly back to the
+  launch point first), Return to Launch (RTL — holds current altitude on
+  the way home, then descends once over the launch point; see below)
 - **Search mode**: click a point on the in-app map to send the vehicle to
   survey it — see below.
 

@@ -17,6 +17,7 @@ export const droneApi = {
   arm: () => post("arm"),
   disarm: () => post("disarm"),
   takeoff: (altitude: number) => post("takeoff", { altitude }),
+  land: () => post("land"),
   rtl: () => post("rtl"),
   search: (lat: number, lon: number, altitude: number) => post("search", { lat, lon, altitude }),
   cancelSearch: () => post("search/cancel"),

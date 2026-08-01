@@ -3,7 +3,7 @@ import { droneApi } from "../api/client";
 import type { CommandResult, TelemetryState } from "../types/telemetry";
 import { ConfirmDialog } from "./ConfirmDialog";
 
-type PendingAction = "disarm" | "takeoff" | "rtl" | null;
+type PendingAction = "disarm" | "takeoff" | "land" | "rtl" | null;
 
 export function CommandPanel({
   telemetry,
@@ -49,6 +49,9 @@ export function CommandPanel({
         <button className="btn" disabled={!connected || !armed || busy} onClick={() => setPending("takeoff")}>
           Takeoff
         </button>
+        <button className="btn" disabled={!connected || !armed || busy} onClick={() => setPending("land")}>
+          Land
+        </button>
         <button className="btn btn-danger" disabled={!connected || !armed || busy} onClick={() => setPending("rtl")}>
           Return to Launch
         </button>
@@ -85,6 +88,16 @@ export function CommandPanel({
             onChange={(e) => setAltitude(Number(e.target.value))}
           />
         </ConfirmDialog>
+      )}
+
+      {pending === "land" && (
+        <ConfirmDialog
+          title="Land now?"
+          description="The vehicle will switch to LAND mode and descend straight down at its current position (it will not fly back to the launch point first — use Return to Launch for that)."
+          confirmLabel="Land"
+          onConfirm={() => run(droneApi.land)}
+          onCancel={() => setPending(null)}
+        />
       )}
 
       {pending === "rtl" && (

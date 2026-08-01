@@ -48,6 +48,16 @@ async def takeoff(body: TakeoffRequest) -> CommandResult:
     return await asyncio.to_thread(mavlink_manager.submit_command, "takeoff", altitude=body.altitude)
 
 
+@router.post("/land", response_model=CommandResult)
+async def land() -> CommandResult:
+    state = mavlink_manager.get_state()
+    if not state.connected:
+        raise HTTPException(status_code=409, detail="Cannot land: vehicle is not connected")
+    if not state.armed:
+        raise HTTPException(status_code=409, detail="Cannot land: vehicle is not armed")
+    return await asyncio.to_thread(mavlink_manager.submit_command, "land")
+
+
 @router.post("/rtl", response_model=CommandResult)
 async def rtl() -> CommandResult:
     state = mavlink_manager.get_state()

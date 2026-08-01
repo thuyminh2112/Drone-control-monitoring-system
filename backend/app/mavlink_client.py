@@ -335,9 +335,9 @@ class MAVLinkManager:
 
     def _dispatch_command(self, name: str, **kwargs) -> CommandResult:
         if name != "search":
-            # Arm/Disarm/Takeoff/RTL all supersede any in-progress search —
-            # clear it so the arrival check / orbit driver don't later
-            # hijack the mode the new command just set.
+            # Arm/Disarm/Takeoff/Land/RTL all supersede any in-progress
+            # search — clear it so the arrival check / orbit driver don't
+            # later hijack the mode the new command just set.
             with self._lock:
                 self._state.search_target_lat = None
                 self._state.search_target_lon = None
@@ -349,6 +349,8 @@ class MAVLinkManager:
             return self._cmd_disarm()
         if name == "takeoff":
             return self._cmd_takeoff(kwargs.get("altitude", 10.0))
+        if name == "land":
+            return self._cmd_land()
         if name == "rtl":
             return self._cmd_rtl()
         if name == "search":
@@ -390,6 +392,11 @@ class MAVLinkManager:
             return CommandResult(success=False, message="Takeoff failed: could not switch to GUIDED mode")
         ack = self._send_command_long(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, param7=altitude)
         return self._ack_to_result(ack, "Takeoff")
+
+    def _cmd_land(self) -> CommandResult:
+        if self._set_mode("LAND"):
+            return CommandResult(success=True, message="Land engaged", mav_result="MODE_CHANGED")
+        return CommandResult(success=False, message="Land failed: could not switch to LAND mode")
 
     def _cmd_rtl(self) -> CommandResult:
         if self._set_mode("RTL"):
