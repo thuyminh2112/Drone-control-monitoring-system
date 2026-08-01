@@ -19,6 +19,12 @@ class TelemetryState(BaseModel):
 
     groundspeed: Optional[float] = None
     heading: Optional[float] = None
+    vertical_speed: Optional[float] = None
+
+    # Attitude, in degrees, from the ATTITUDE MAVLink message.
+    roll: Optional[float] = None
+    pitch: Optional[float] = None
+    yaw: Optional[float] = None
 
     # Set while a "fly to point" search command is active; cleared by
     # Arm/Disarm/Takeoff/Land/RTL. `search_arrived` flips true once the

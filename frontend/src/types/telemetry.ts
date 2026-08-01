@@ -13,6 +13,11 @@ export interface TelemetryState {
 
   groundspeed: number | null;
   heading: number | null;
+  vertical_speed: number | null;
+
+  roll: number | null;
+  pitch: number | null;
+  yaw: number | null;
 
   search_target_lat: number | null;
   search_target_lon: number | null;

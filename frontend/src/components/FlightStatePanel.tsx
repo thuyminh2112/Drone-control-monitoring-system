@@ -113,7 +113,11 @@ export function FlightStatePanel({ telemetry, wsStatus }: { telemetry: Telemetry
             <div className="metric-value metric-value-info">
               {telemetry?.alt_relative != null ? `${telemetry.alt_relative.toFixed(1)} m` : "—"}
             </div>
-            <div className="telemetry-subvalue">vertical speed —</div>
+            <div className="telemetry-subvalue">
+              {telemetry?.vertical_speed != null
+                ? `${telemetry.vertical_speed >= 0 ? "+" : ""}${telemetry.vertical_speed.toFixed(1)} m/s vertical`
+                : "vertical speed —"}
+            </div>
           </div>
 
           <div>
@@ -149,15 +153,15 @@ export function FlightStatePanel({ telemetry, wsStatus }: { telemetry: Telemetry
           <div className="attitude-row">
             <div>
               <div className="metric-label">Roll</div>
-              <div className="metric-value">—</div>
+              <div className="metric-value">{telemetry?.roll != null ? `${telemetry.roll.toFixed(1)}°` : "—"}</div>
             </div>
             <div>
               <div className="metric-label">Pitch</div>
-              <div className="metric-value">—</div>
+              <div className="metric-value">{telemetry?.pitch != null ? `${telemetry.pitch.toFixed(1)}°` : "—"}</div>
             </div>
             <div>
               <div className="metric-label">Yaw</div>
-              <div className="metric-value">{telemetry?.heading != null ? `${telemetry.heading.toFixed(0)}°` : "—"}</div>
+              <div className="metric-value">{telemetry?.yaw != null ? `${telemetry.yaw.toFixed(0)}°` : "—"}</div>
             </div>
           </div>
         </div>

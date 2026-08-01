@@ -220,8 +220,13 @@ class MAVLinkManager:
                     self._state.heading = msg.hdg / 100.0
             elif msg_type == "VFR_HUD":
                 self._state.groundspeed = msg.groundspeed
+                self._state.vertical_speed = msg.climb
                 if self._state.heading is None:
                     self._state.heading = msg.heading
+            elif msg_type == "ATTITUDE":
+                self._state.roll = math.degrees(msg.roll)
+                self._state.pitch = math.degrees(msg.pitch)
+                self._state.yaw = math.degrees(msg.yaw) % 360.0
             elif msg_type == "SYS_STATUS":
                 if msg.battery_remaining >= 0:
                     self._state.battery_percent = float(msg.battery_remaining)
