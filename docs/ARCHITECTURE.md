@@ -14,7 +14,10 @@
    FastAPI side are put on a `queue.Queue`; results are returned via a
    matched `threading.Event` + result slot. The thread also tracks the last
    heartbeat timestamp — no heartbeat for 5s means `connected = False`, and
-   the thread will keep trying to (re)connect.
+   the thread will keep trying to (re)connect. On each (re)connect it also
+   sends `PARAM_SET RTL_ALT=0` once (`_ensure_rtl_alt_configured`) so
+   ArduCopter's RTL holds the current altitude on the way home instead of
+   first climbing to its default ~15m RTL altitude.
 
 3. **`redis_bridge.py`** — every telemetry tick (~2 Hz) the normalized
    `TelemetryState` is:

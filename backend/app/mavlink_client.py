@@ -111,6 +111,7 @@ class MAVLinkManager:
         self._orbit_altitude: float = 15.0
         self._orbit_bearing_deg: float = 0.0
         self._orbit_last_update_monotonic: float = 0.0
+        self._rtl_alt_configured: bool = False
         self._thread = threading.Thread(target=self._run, daemon=True, name="mavlink-client")
 
     def start(self) -> None:
@@ -149,8 +150,10 @@ class MAVLinkManager:
             self._check_heartbeat_timeout()
             self._check_search_arrival()
             self._drive_orbit()
+            self._ensure_rtl_alt_configured()
 
     def _connect(self) -> None:
+        self._rtl_alt_configured = False
         while not self._stop_event.is_set():
             try:
                 logger.info("Connecting to MAVLink at %s", self.connection_string)
@@ -177,6 +180,25 @@ class MAVLinkManager:
                 return
             if time.monotonic() - self._last_heartbeat_monotonic > settings.heartbeat_timeout_seconds:
                 self._state.connected = False
+
+    def _ensure_rtl_alt_configured(self) -> None:
+        """RTL_ALT=0 tells ArduCopter's RTL to hold the current altitude on
+        the way home instead of first climbing to its default RTL altitude
+        (~15m). Set once per connection since SITL resets params on restart."""
+        if self._rtl_alt_configured or self._master is None:
+            return
+        with self._lock:
+            if not self._state.connected:
+                return
+        self._master.mav.param_set_send(
+            self._master.target_system,
+            self._master.target_component,
+            b"RTL_ALT",
+            0.0,
+            mavutil.mavlink.MAV_PARAM_TYPE_REAL32,
+        )
+        self._rtl_alt_configured = True
+        logger.info("Set RTL_ALT=0 (RTL returns at current altitude, no forced climb)")
 
     def _check_search_arrival(self) -> None:
         with self._lock:

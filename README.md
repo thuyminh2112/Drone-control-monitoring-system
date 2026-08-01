@@ -46,9 +46,22 @@ commands to run everything locally.
 - Altitude
 - Flight mode
 - Armed / disarmed status
-- Commands: Arm, Disarm, Takeoff, Return to Launch (RTL)
+- Commands: Arm, Disarm, Takeoff, Return to Launch (RTL — holds current
+  altitude on the way home, then descends once over the launch point; see
+  below)
 - **Search mode**: click a point on the in-app map to send the vehicle to
   survey it — see below.
+
+## Return to Launch
+
+By default ArduCopter's RTL first climbs to a minimum altitude (`RTL_ALT`,
+~15m) before flying home, in case there are obstacles between the vehicle
+and home. The backend sets `RTL_ALT=0` on connect (via `PARAM_SET`), which
+tells ArduCopter to hold whatever altitude it's already at instead — RTL
+flies straight back to the launch point at the current altitude, then
+descends and lands once over it. To restore the climb-first default for a
+specific test, run `param set RTL_ALT 1500` (centimeters) in the MAVProxy
+console — it'll be reset back to 0 the next time the backend connects.
 
 ## Search mode
 
