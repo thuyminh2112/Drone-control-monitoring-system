@@ -25,6 +25,13 @@ ARDUCOPTER_MODES = {
 }
 ARDUCOPTER_MODES_BY_NAME = {name: num for num, name in ARDUCOPTER_MODES.items()}
 
+# Autonomous/mission modes ArduCopter refuses to arm from on the ground
+# (e.g. "Arm: RTL mode not armable"). After a completed RTL landing the
+# vehicle stays in RTL rather than reverting to a manual mode, so Arm needs
+# to steer it back to a safe standby mode first.
+NOT_ARMABLE_ON_GROUND = {"RTL", "SMART_RTL", "AUTO_RTL", "AUTO", "LAND", "CIRCLE", "AUTOTUNE"}
+STANDBY_MODE = "STABILIZE"
+
 RECONNECT_DELAY_SECONDS = 3.0
 POLL_TIMEOUT_SECONDS = 0.2
 
@@ -190,6 +197,12 @@ class MAVLinkManager:
         raise ValueError(f"Unknown command: {name}")
 
     def _cmd_arm(self) -> CommandResult:
+        if self._state.flight_mode in NOT_ARMABLE_ON_GROUND:
+            if not self._set_mode(STANDBY_MODE):
+                return CommandResult(
+                    success=False,
+                    message=f"Arm failed: could not leave {self._state.flight_mode} mode to reach an armable mode",
+                )
         ack = self._send_command_long(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, param1=1)
         result = self._ack_to_result(ack, "Arm")
         if result.success:
