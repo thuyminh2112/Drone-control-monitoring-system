@@ -42,13 +42,6 @@ export default function App() {
 
           <CommandPanel telemetry={telemetry} connected={connected} onResult={setToast} />
 
-          <div className="compass-vehicle-row">
-            <div className="card compass-card">
-              <CompassWidget heading={telemetry?.heading ?? null} size={101} standalone />
-            </div>
-            <VehicleCard iconSize={61} />
-          </div>
-
           <MissionPlanCard
             telemetry={telemetry}
             connected={connected}
@@ -58,6 +51,13 @@ export default function App() {
             setPendingPoint={setPendingPoint}
             onResult={setToast}
           />
+
+          <div className="compass-vehicle-row">
+            <div className="card compass-card">
+              <CompassWidget heading={telemetry?.heading ?? null} size={101} standalone />
+            </div>
+            <VehicleCard iconSize={61} />
+          </div>
         </div>
       </div>
 
