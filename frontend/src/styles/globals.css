@@ -30,9 +30,9 @@ button {
 
 .main-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 2.1fr) minmax(340px, 1fr);
   gap: var(--space-5);
-  align-items: start;
+  align-items: stretch;
 }
 
 .left-column,
@@ -43,9 +43,17 @@ button {
   min-width: 0;
 }
 
-@media (max-width: 900px) {
+.left-column {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 960px) {
   .main-layout {
     grid-template-columns: 1fr;
+  }
+
+  .left-column {
+    min-height: 420px;
   }
 }
 
@@ -145,10 +153,33 @@ button {
   background: var(--color-text-muted);
 }
 
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  border-radius: var(--radius-sm);
+  padding: 3px var(--space-3);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 .command-panel {
   display: flex;
   gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+.command-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.command-grid-wide {
+  grid-column: 1 / -1;
 }
 
 .btn {
@@ -172,6 +203,10 @@ button {
   cursor: not-allowed;
 }
 
+.btn-full {
+  width: 100%;
+}
+
 .btn-primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
@@ -191,6 +226,26 @@ button {
 
 .btn-danger:hover:not(:disabled) {
   background: var(--color-bad-bg);
+}
+
+.btn-success {
+  border-color: var(--color-good);
+  color: var(--color-good);
+  background: transparent;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--color-good-bg);
+}
+
+.btn-arm {
+  background: var(--color-good);
+  border-color: var(--color-good);
+  color: var(--color-accent-contrast);
+}
+
+.btn-arm:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .battery-bar {
@@ -282,15 +337,55 @@ button {
 }
 
 .map-card {
+  position: relative;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface);
+  flex: 1 1 auto;
+  min-height: 420px;
+  display: flex;
 }
 
 .main-map {
-  height: min(560px, 62vh);
+  height: 100%;
   width: 100%;
+}
+
+.map-overlay-label {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 500;
+  pointer-events: none;
+  background: rgba(10, 13, 11, 0.78);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  max-width: 60%;
+}
+
+.map-overlay-label .metric-label {
+  margin-bottom: 2px;
+  color: #9fb0a3;
+}
+
+.map-overlay-label .map-overlay-value {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #e8ece7;
+  font-family: var(--font-mono);
+}
+
+/* Leaflet's default zoom control is styled for a light basemap; darken it
+   so it doesn't look like a stray light-mode artifact on the dark canvas. */
+.leaflet-control-zoom a {
+  background-color: rgba(10, 13, 11, 0.85) !important;
+  color: #e8ece7 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+.leaflet-control-zoom a:hover {
+  background-color: rgba(20, 26, 16, 0.95) !important;
 }
 
 .flight-state-panel {
@@ -299,11 +394,158 @@ button {
   gap: var(--space-4);
 }
 
+.status-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.status-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4) var(--space-5);
+}
+
+.telemetry-grid .metric-value {
+  color: var(--color-value-emphasis);
+}
+
+.telemetry-subvalue {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.telemetry-divider {
+  grid-column: 1 / -1;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+.attitude-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.attitude-row .metric-value {
+  color: var(--color-accent);
+  font-size: 1.0625rem;
+}
+
+.battery-icon {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+
 .compass-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
+}
+
+.compass-vehicle-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.vehicle-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.vehicle-card .vehicle-name {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.vehicle-card .vehicle-type {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.btn.btn-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.btn.btn-active:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+.mission-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.mission-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.mission-item:hover:not(.mission-item-disabled) {
+  border-color: var(--color-accent);
+}
+
+.mission-item.active {
+  border-color: var(--color-accent);
+  background: var(--color-warn-bg);
+}
+
+.mission-item-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.mission-item-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+}
+
+.mission-item-tag.active-tag {
+  color: var(--color-accent);
+  background: transparent;
+  border: 1px solid var(--color-accent);
+}
+
+.mission-item-tag.soon-tag {
+  color: var(--color-text-muted);
+  background: var(--color-neutral-bg);
 }
 
 /* Default Leaflet marker is blue; shift hue to tell the three pins apart. */

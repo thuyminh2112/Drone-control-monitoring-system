@@ -20,6 +20,7 @@ export function CommandPanel({
 
   const armed = telemetry?.armed ?? false;
   const inAir = armed && (telemetry?.alt_relative ?? 0) > 0.5;
+  const flightMode = telemetry?.flight_mode ?? "";
 
   async function run(fn: () => Promise<CommandResult>) {
     setBusy(true);
@@ -35,12 +36,16 @@ export function CommandPanel({
   return (
     <div className="card">
       <div className="section-title">Commands</div>
-      <div className="command-panel">
-        <button className="btn btn-primary" disabled={!connected || armed || busy} onClick={() => run(droneApi.arm)}>
+      <div className="command-grid">
+        <button
+          className="btn btn-arm"
+          disabled={!connected || armed || busy}
+          onClick={() => run(droneApi.arm)}
+        >
           Arm
         </button>
         <button
-          className="btn"
+          className="btn btn-danger"
           disabled={!connected || !armed || busy}
           onClick={() => (inAir ? setPending("disarm") : run(droneApi.disarm))}
         >
@@ -49,10 +54,18 @@ export function CommandPanel({
         <button className="btn" disabled={!connected || !armed || busy} onClick={() => setPending("takeoff")}>
           Takeoff
         </button>
-        <button className="btn" disabled={!connected || !armed || busy} onClick={() => setPending("land")}>
+        <button
+          className={flightMode === "LAND" ? "btn btn-active" : "btn"}
+          disabled={!connected || !armed || busy}
+          onClick={() => setPending("land")}
+        >
           Land
         </button>
-        <button className="btn btn-danger" disabled={!connected || !armed || busy} onClick={() => setPending("rtl")}>
+        <button
+          className={flightMode === "RTL" ? "btn btn-active command-grid-wide" : "btn btn-danger command-grid-wide"}
+          disabled={!connected || !armed || busy}
+          onClick={() => setPending("rtl")}
+        >
           Return to Launch
         </button>
       </div>

@@ -153,9 +153,22 @@ export function MapPanel({
     }
   }, [telemetry?.search_target_lat, telemetry?.search_target_lon]);
 
+  const hasTarget = telemetry?.search_target_lat != null && telemetry?.search_target_lon != null;
+  const overlayValue = hasTarget
+    ? `${telemetry!.search_target_lat!.toFixed(5)}, ${telemetry!.search_target_lon!.toFixed(5)}${
+        telemetry?.search_arrived ? " · arrived" : " · en route"
+      }`
+    : pendingPoint
+      ? `${pendingPoint.lat.toFixed(5)}, ${pendingPoint.lon.toFixed(5)} · not sent yet`
+      : "No active search target";
+
   return (
     <div className="map-card">
       <div ref={mapContainerRef} className="main-map" />
+      <div className="map-overlay-label">
+        <div className="metric-label">Search area</div>
+        <div className="map-overlay-value">{overlayValue}</div>
+      </div>
     </div>
   );
 }

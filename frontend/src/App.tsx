@@ -4,7 +4,8 @@ import { CompassWidget } from "./components/CompassWidget";
 import { FlightStatePanel } from "./components/FlightStatePanel";
 import { Header } from "./components/Header";
 import { MapPanel } from "./components/MapPanel";
-import { SearchCommands } from "./components/SearchCommands";
+import { MissionPlanCard } from "./components/MissionPlanCard";
+import { VehicleCard } from "./components/VehicleCard";
 import { useTelemetry } from "./hooks/useTelemetry";
 import type { CommandResult } from "./types/telemetry";
 
@@ -34,8 +35,22 @@ export default function App() {
             pendingPoint={pendingPoint}
             onMapClick={setPendingPoint}
           />
+        </div>
+
+        <div className="right-column">
+          <FlightStatePanel telemetry={telemetry} wsStatus={status} />
+
           <CommandPanel telemetry={telemetry} connected={connected} onResult={setToast} />
-          <SearchCommands
+
+          <div className="compass-vehicle-row">
+            <div className="card compass-card">
+              <div className="section-title">Compass</div>
+              <CompassWidget heading={telemetry?.heading ?? null} size={104} standalone />
+            </div>
+            <VehicleCard />
+          </div>
+
+          <MissionPlanCard
             telemetry={telemetry}
             connected={connected}
             searchModeOn={searchModeOn}
@@ -44,14 +59,6 @@ export default function App() {
             setPendingPoint={setPendingPoint}
             onResult={setToast}
           />
-        </div>
-
-        <div className="right-column">
-          <FlightStatePanel telemetry={telemetry} wsStatus={status} />
-          <div className="card compass-card">
-            <div className="section-title">Compass</div>
-            <CompassWidget heading={telemetry?.heading ?? null} size={168} standalone />
-          </div>
         </div>
       </div>
 

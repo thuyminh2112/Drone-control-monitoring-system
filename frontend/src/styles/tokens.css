@@ -1,9 +1,11 @@
 :root {
   --color-bg: #faf9f5;
   --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
   --color-border: #e5e2d9;
   --color-text: #262521;
   --color-text-muted: #6b6a63;
+  --color-value-emphasis: #262521;
   --color-accent: #c15f3c;
   --color-accent-hover: #a94f30;
   --color-accent-contrast: #ffffff;
@@ -31,21 +33,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1e1d1a;
-    --color-surface: #262521;
-    --color-border: #3a382f;
-    --color-text: #ede9e0;
-    --color-text-muted: #a6a396;
-    --color-accent: #e0774f;
-    --color-accent-hover: #ec8b64;
-    --color-accent-contrast: #1e1d1a;
+    /* "Mission control" palette: near-black with a faint green-gray
+       undertone, orange/amber for the active/selected state, green for
+       armed-safe/go actions, red for armed-danger/critical readings. */
+    --color-bg: #0a0d0b;
+    --color-surface: #10140f;
+    --color-surface-raised: #141a10;
+    --color-border: #232a22;
+    --color-text: #e8ece7;
+    --color-text-muted: #7c8a7d;
+    --color-value-emphasis: #cfe8e0;
+    --color-accent: #e0824a;
+    --color-accent-hover: #ec9861;
+    --color-accent-contrast: #0a0d0b;
 
-    --color-good: #7fb28d;
-    --color-good-bg: #24312a;
-    --color-warn: #d9ab5c;
-    --color-warn-bg: #362e1c;
-    --color-bad: #e0796a;
-    --color-bad-bg: #3a2622;
-    --color-neutral-bg: #2c2b26;
+    --color-good: #5fc26a;
+    --color-good-bg: #16281a;
+    --color-warn: #e0b25c;
+    --color-warn-bg: #2e2716;
+    --color-bad: #e2564a;
+    --color-bad-bg: #2c1815;
+    --color-neutral-bg: #171c15;
   }
 }
