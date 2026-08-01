@@ -38,24 +38,28 @@ export function CommandPanel({
       <div className="section-title">Commands</div>
       <div className="command-grid">
         <button
-          className="btn btn-arm"
+          className="btn btn-arm command-grid-span3"
           disabled={!connected || armed || busy}
           onClick={() => run(droneApi.arm)}
         >
           Arm
         </button>
         <button
-          className="btn btn-danger"
+          className="btn btn-danger command-grid-span3"
           disabled={!connected || !armed || busy}
           onClick={() => (inAir ? setPending("disarm") : run(droneApi.disarm))}
         >
           Disarm
         </button>
-        <button className="btn" disabled={!connected || !armed || busy} onClick={() => setPending("takeoff")}>
+        <button
+          className="btn command-grid-span2"
+          disabled={!connected || !armed || busy}
+          onClick={() => setPending("takeoff")}
+        >
           Takeoff
         </button>
         <button
-          className={flightMode === "LAND" ? "btn btn-active" : "btn"}
+          className={flightMode === "LAND" ? "btn btn-active command-grid-span2" : "btn command-grid-span2"}
           disabled={!connected || !armed || busy}
           onClick={() => setPending("land")}
         >
@@ -66,7 +70,7 @@ export function CommandPanel({
           disabled={!connected || !armed || busy}
           onClick={() => setPending("rtl")}
         >
-          Return to Launch
+          RTL
         </button>
       </div>
 
