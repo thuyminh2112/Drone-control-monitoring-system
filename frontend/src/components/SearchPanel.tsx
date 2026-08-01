@@ -145,6 +145,21 @@ export function SearchPanel({
     }
   }
 
+  async function toggleSearchMode() {
+    const turningOff = searchModeOn;
+    setSearchModeOn((on) => !on);
+    if (!turningOff) return;
+    setPendingPoint(null);
+    if (telemetry?.search_target_lat == null) return;
+    setBusy(true);
+    try {
+      const result = await droneApi.cancelSearch();
+      onResult(result);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const hasActiveTarget = telemetry?.search_target_lat != null;
   const statusText = hasActiveTarget ? (telemetry?.orbiting ? "Orbiting search point" : "Heading to search point…") : null;
 
@@ -154,8 +169,8 @@ export function SearchPanel({
       <div className="command-panel" style={{ marginBottom: "var(--space-3)" }}>
         <button
           className={searchModeOn ? "btn btn-primary" : "btn"}
-          disabled={!connected || !armed}
-          onClick={() => setSearchModeOn((on) => !on)}
+          disabled={(!connected || !armed) && !searchModeOn}
+          onClick={toggleSearchMode}
         >
           {searchModeOn ? "Search Mode: On" : "Search Mode"}
         </button>

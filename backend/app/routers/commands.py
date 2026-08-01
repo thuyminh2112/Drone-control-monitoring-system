@@ -75,3 +75,8 @@ async def search(body: SearchRequest) -> CommandResult:
         lon=body.lon,
         altitude=body.altitude,
     )
+
+
+@router.post("/search/cancel", response_model=CommandResult)
+async def cancel_search() -> CommandResult:
+    return await asyncio.to_thread(mavlink_manager.submit_command, "cancel_search")

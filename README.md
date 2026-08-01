@@ -62,7 +62,10 @@ mode (via `MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS
 software like QGroundControl uses) at the altitude you set, then orbits the
 point — simulating the vehicle surveying that location during a search
 sortie. If already airborne, it just repositions to the new point/altitude
-directly. Arm/Disarm/Takeoff/RTL all cancel an in-progress search.
+directly. Arm/Disarm/Takeoff/RTL all cancel an in-progress search, and so
+does toggling "Search Mode" off while a search is en route or orbiting —
+the vehicle stops where it is and holds position (GUIDED mode holds the
+last commanded point once no new setpoint follows).
 
 The orbit is driven by the backend itself (repeatedly repositioning to a
 point walking around the target's circumference, still in GUIDED mode)

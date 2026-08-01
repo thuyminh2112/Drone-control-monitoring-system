@@ -302,6 +302,11 @@ class MAVLinkManager:
             return self._cmd_rtl()
         if name == "search":
             return self._cmd_search(kwargs["lat"], kwargs["lon"], kwargs.get("altitude"))
+        if name == "cancel_search":
+            # The clearing block above already stopped the orbit driver /
+            # arrival check; in GUIDED mode the vehicle simply holds its
+            # last commanded position once no new setpoint follows.
+            return CommandResult(success=True, message="Search cancelled — holding position")
         raise ValueError(f"Unknown command: {name}")
 
     def _cmd_arm(self) -> CommandResult:
