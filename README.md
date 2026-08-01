@@ -87,23 +87,14 @@ altitude before sending any horizontal movement, so it goes straight up
 then straight across rather than climbing and translating at the same
 time. It then flies to the clicked point in GUIDED mode (via
 `MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS software like
-QGroundControl uses), then orbits the point — simulating the vehicle
+QGroundControl uses) and holds position there — simulating the vehicle
 surveying that location during a search sortie. If already airborne, it
 just repositions to the new point/altitude directly (climbing/descending
-and moving horizontally together). Arm/Disarm/Takeoff/RTL all cancel an
-in-progress search, and so
-does toggling "Search Mode" off while a search is en route or orbiting —
-the vehicle stops where it is and holds position (GUIDED mode holds the
-last commanded point once no new setpoint follows).
-
-The orbit is driven by the backend itself (repeatedly repositioning to a
-point walking around the target's circumference, still in GUIDED mode)
-rather than switching to ArduCopter's native CIRCLE flight mode. CIRCLE was
-tried first and rejected: its altitude, like Loiter/AltHold, is governed by
-the RC throttle stick, not by MAVLink commands — with no real transmitter
-attached (MAVLink-only control, as here), that reads as zero throttle and
-the vehicle dropped straight to the ground on entering it. GUIDED has no
-such dependency, so the orbit stays fully autonomous.
+and moving horizontally together). Arm/Disarm/Takeoff/Land/RTL all cancel
+an in-progress search, and so does toggling "Search Mode" off while a
+search is en route or already holding at the point — the vehicle stops
+where it is and holds position (GUIDED mode holds the last commanded point
+once no new setpoint follows).
 
 ## Quick start
 

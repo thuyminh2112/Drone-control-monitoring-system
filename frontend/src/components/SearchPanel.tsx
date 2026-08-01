@@ -122,7 +122,7 @@ export function SearchPanel({
     }
   }, [pendingPoint]);
 
-  // Marker for the point the backend is actually flying to / orbiting.
+  // Marker for the point the backend is actually flying to / holding at.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -167,7 +167,7 @@ export function SearchPanel({
   }
 
   const hasActiveTarget = telemetry?.search_target_lat != null;
-  const statusText = hasActiveTarget ? (telemetry?.orbiting ? "Orbiting search point" : "Heading to search point…") : null;
+  const statusText = hasActiveTarget ? (telemetry?.search_arrived ? "At search point" : "Heading to search point…") : null;
 
   return (
     <div className="card">
@@ -201,7 +201,7 @@ export function SearchPanel({
       {searchModeOn && (
         <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
           Click a point on the map to select the search target. Starting a search takes off (if not already
-          airborne) to the altitude set above, flies there, and orbits it.
+          airborne) to the altitude set above, flies there, and holds position.
         </p>
       )}
       <div ref={mapContainerRef} className="search-map" />

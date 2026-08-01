@@ -33,22 +33,11 @@ ARDUCOPTER_MODES_BY_NAME = {name: num for num, name in ARDUCOPTER_MODES.items()}
 NOT_ARMABLE_ON_GROUND = {"RTL", "SMART_RTL", "AUTO_RTL", "AUTO", "LAND", "CIRCLE", "AUTOTUNE"}
 STANDBY_MODE = "STABILIZE"
 
-# "Search" flow: DO_REPOSITION flies to the chosen point in GUIDED mode.
-# Once within arrival radius, we drive an orbit ourselves by repeatedly
-# repositioning to a point that walks around the target's circumference —
-# still in GUIDED mode, still companion-computer controlled altitude.
-#
-# ArduCopter's native CIRCLE mode was tried first and rejected: like
-# Loiter/AltHold, CIRCLE's altitude is governed by the RC throttle stick,
-# not by MAVLink commands. With no real transmitter attached (MAVLink-only
-# control, as here), that reads as zero throttle and the vehicle drops
-# straight to the ground on entering CIRCLE. GUIDED has no such dependency
-# (proven by Takeoff/DO_REPOSITION already holding altitude reliably), so
-# the orbit is built out of GUIDED waypoints instead of a flight-mode switch.
+# "Search" flow: DO_REPOSITION flies to the chosen point in GUIDED mode and
+# holds there once arrived (GUIDED naturally holds the last commanded point
+# when no new setpoint follows). SEARCH_ARRIVAL_RADIUS_METERS is only used
+# to flip `search_arrived` for the frontend's status text.
 SEARCH_ARRIVAL_RADIUS_METERS = 5.0
-ORBIT_RADIUS_METERS = 15.0
-ORBIT_PERIOD_SECONDS = 24.0
-ORBIT_UPDATE_INTERVAL_SECONDS = 1.5
 
 RECONNECT_DELAY_SECONDS = 3.0
 POLL_TIMEOUT_SECONDS = 0.2
@@ -63,20 +52,6 @@ def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> flo
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return 2 * EARTH_RADIUS_METERS * math.asin(math.sqrt(a))
-
-
-def _offset_point(lat: float, lon: float, bearing_deg: float, distance_m: float) -> tuple[float, float]:
-    """Destination point `distance_m` from (lat, lon) along `bearing_deg` (0=north, clockwise)."""
-    phi1 = math.radians(lat)
-    lam1 = math.radians(lon)
-    theta = math.radians(bearing_deg)
-    delta = distance_m / EARTH_RADIUS_METERS
-    phi2 = math.asin(math.sin(phi1) * math.cos(delta) + math.cos(phi1) * math.sin(delta) * math.cos(theta))
-    lam2 = lam1 + math.atan2(
-        math.sin(theta) * math.sin(delta) * math.cos(phi1),
-        math.cos(delta) - math.sin(phi1) * math.sin(phi2),
-    )
-    return math.degrees(phi2), math.degrees(lam2)
 
 
 class _CommandRequest:
@@ -108,10 +83,6 @@ class MAVLinkManager:
         self._stop_event = threading.Event()
         self._last_heartbeat_monotonic: Optional[float] = None
         self._last_statustext: Optional[str] = None
-        self._orbit_center: Optional[tuple[float, float]] = None
-        self._orbit_altitude: float = 15.0
-        self._orbit_bearing_deg: float = 0.0
-        self._orbit_last_update_monotonic: float = 0.0
         self._rtl_alt_configured: bool = False
         self._rtl_alt_last_attempt_monotonic: float = 0.0
         self._thread = threading.Thread(target=self._run, daemon=True, name="mavlink-client")
@@ -151,7 +122,6 @@ class MAVLinkManager:
                 self._reconnect()
             self._check_heartbeat_timeout()
             self._check_search_arrival()
-            self._drive_orbit()
             self._ensure_rtl_alt_configured()
 
     def _connect(self) -> None:
@@ -219,51 +189,16 @@ class MAVLinkManager:
     def _check_search_arrival(self) -> None:
         with self._lock:
             has_target = self._state.search_target_lat is not None and self._state.search_target_lon is not None
-            en_route = has_target and not self._state.orbiting and self._state.flight_mode == "GUIDED"
+            en_route = has_target and not self._state.search_arrived and self._state.flight_mode == "GUIDED"
             if not en_route or self._state.lat is None or self._state.lon is None:
                 return
             target_lat, target_lon = self._state.search_target_lat, self._state.search_target_lon
             cur_lat, cur_lon = self._state.lat, self._state.lon
         distance = _haversine_meters(target_lat, target_lon, cur_lat, cur_lon)
         if distance <= SEARCH_ARRIVAL_RADIUS_METERS:
-            logger.info("Arrived at search point (%.1fm), starting orbit", distance)
+            logger.info("Arrived at search point (%.1fm), holding position", distance)
             with self._lock:
-                self._state.orbiting = True
-            self._orbit_center = (target_lat, target_lon)
-            self._orbit_bearing_deg = 0.0
-            # fire the first orbit waypoint immediately rather than waiting
-            # a full update interval
-            self._orbit_last_update_monotonic = time.monotonic() - ORBIT_UPDATE_INTERVAL_SECONDS
-
-    def _drive_orbit(self) -> None:
-        with self._lock:
-            active = self._state.orbiting and self._orbit_center is not None
-            still_guided = self._state.flight_mode == "GUIDED"
-        if not active:
-            return
-        if not still_guided:
-            # Something else (failsafe, manual mode change) moved the
-            # vehicle out of GUIDED — stop trying to drive it.
-            with self._lock:
-                self._state.orbiting = False
-            self._orbit_center = None
-            return
-        if time.monotonic() - self._orbit_last_update_monotonic < ORBIT_UPDATE_INTERVAL_SECONDS:
-            return
-        self._orbit_last_update_monotonic = time.monotonic()
-        self._orbit_bearing_deg = (self._orbit_bearing_deg + 360.0 * ORBIT_UPDATE_INTERVAL_SECONDS / ORBIT_PERIOD_SECONDS) % 360.0
-        center_lat, center_lon = self._orbit_center
-        next_lat, next_lon = _offset_point(center_lat, center_lon, self._orbit_bearing_deg, ORBIT_RADIUS_METERS)
-        self._send_command_int(
-            mavutil.mavlink.MAV_CMD_DO_REPOSITION,
-            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-            param1=-1,
-            param2=0,
-            param4=float("nan"),
-            x=int(next_lat * 1e7),
-            y=int(next_lon * 1e7),
-            z=self._orbit_altitude,
-        )
+                self._state.search_arrived = True
 
     def _handle_message(self, msg) -> None:
         msg_type = msg.get_type()
@@ -336,13 +271,12 @@ class MAVLinkManager:
     def _dispatch_command(self, name: str, **kwargs) -> CommandResult:
         if name != "search":
             # Arm/Disarm/Takeoff/Land/RTL all supersede any in-progress
-            # search — clear it so the arrival check / orbit driver don't
-            # later hijack the mode the new command just set.
+            # search — clear it so the arrival check doesn't later flip
+            # search_arrived after the new command has moved on.
             with self._lock:
                 self._state.search_target_lat = None
                 self._state.search_target_lon = None
-                self._state.orbiting = False
-            self._orbit_center = None
+                self._state.search_arrived = False
         if name == "arm":
             return self._cmd_arm()
         if name == "disarm":
@@ -356,9 +290,9 @@ class MAVLinkManager:
         if name == "search":
             return self._cmd_search(kwargs["lat"], kwargs["lon"], kwargs.get("altitude"))
         if name == "cancel_search":
-            # The clearing block above already stopped the orbit driver /
-            # arrival check; in GUIDED mode the vehicle simply holds its
-            # last commanded position once no new setpoint follows.
+            # The clearing block above already stopped the arrival check;
+            # in GUIDED mode the vehicle simply holds its last commanded
+            # position once no new setpoint follows.
             return CommandResult(success=True, message="Search cancelled — holding position")
         raise ValueError(f"Unknown command: {name}")
 
@@ -405,12 +339,11 @@ class MAVLinkManager:
 
     def _cmd_search(self, lat: float, lon: float, altitude: Optional[float] = None) -> CommandResult:
         target_alt = altitude if altitude is not None else (self._state.alt_relative or 15.0)
-        # A fresh search command always restarts the en-route -> orbit
-        # cycle at the new point, even if we were already orbiting.
+        # A fresh search command always restarts the en-route -> arrived
+        # cycle at the new point, even if we'd already arrived at a
+        # previous one.
         with self._lock:
-            self._state.orbiting = False
-        self._orbit_center = None
-        self._orbit_altitude = target_alt
+            self._state.search_arrived = False
 
         airborne = (self._state.alt_relative or 0) > 0.5
         if not airborne:
@@ -447,7 +380,7 @@ class MAVLinkManager:
             with self._lock:
                 self._state.search_target_lat = lat
                 self._state.search_target_lon = lon
-            result.message = f"Heading to search point ({lat:.5f}, {lon:.5f}) at {target_alt:.0f}m — will orbit on arrival"
+            result.message = f"Heading to search point ({lat:.5f}, {lon:.5f}) at {target_alt:.0f}m"
         return result
 
     def _set_mode(self, mode_name: str) -> bool:

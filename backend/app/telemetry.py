@@ -20,13 +20,13 @@ class TelemetryState(BaseModel):
     groundspeed: Optional[float] = None
     heading: Optional[float] = None
 
-    # Set while a "fly to point and orbit" search command is active; cleared
-    # by Arm/Disarm/Takeoff/RTL. `orbiting` flips true once the vehicle has
-    # arrived and the backend is actively driving a GUIDED-mode orbit
-    # around the target (see mavlink_client._drive_orbit).
+    # Set while a "fly to point" search command is active; cleared by
+    # Arm/Disarm/Takeoff/Land/RTL. `search_arrived` flips true once the
+    # vehicle is within arrival radius of the target and holding position
+    # there (GUIDED mode holds the last commanded point on its own).
     search_target_lat: Optional[float] = None
     search_target_lon: Optional[float] = None
-    orbiting: bool = False
+    search_arrived: bool = False
 
     last_heartbeat: Optional[datetime] = None
     timestamp: datetime = datetime.now(timezone.utc)
