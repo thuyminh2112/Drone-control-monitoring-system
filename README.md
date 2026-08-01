@@ -47,6 +47,20 @@ commands to run everything locally.
 - Flight mode
 - Armed / disarmed status
 - Commands: Arm, Disarm, Takeoff, Return to Launch (RTL)
+- **Search mode**: click a point on the in-app map to send the vehicle to
+  survey it — see below.
+
+## Search mode
+
+Flow: **Arm → Takeoff → toggle "Search Mode" → click a point on the map →
+"Start Search"**.
+
+The vehicle flies to the clicked point in GUIDED mode (via
+`MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS software like
+QGroundControl uses), then automatically switches to ArduCopter's native
+**CIRCLE** mode once within 5m to orbit the point — simulating the vehicle
+surveying that location during a search sortie. Arm/Disarm/Takeoff/RTL all
+cancel an in-progress search.
 
 ## Quick start
 
