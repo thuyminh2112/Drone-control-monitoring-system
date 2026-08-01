@@ -7,13 +7,17 @@ import { MapPanel } from "./components/MapPanel";
 import { MissionPlanCard } from "./components/MissionPlanCard";
 import { VehicleCard } from "./components/VehicleCard";
 import { useTelemetry } from "./hooks/useTelemetry";
-import type { CommandResult } from "./types/telemetry";
+import type { CommandResult, MissionWaypoint } from "./types/telemetry";
+
+const DEFAULT_WAYPOINT_ALTITUDE = 15;
 
 export default function App() {
   const { telemetry, status } = useTelemetry();
   const [toast, setToast] = useState<CommandResult | null>(null);
-  const [searchModeOn, setSearchModeOn] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [missionPlanningOn, setMissionPlanningOn] = useState(false);
+  const [plannedWaypoints, setPlannedWaypoints] = useState<MissionWaypoint[]>([]);
+  const [missionAltitude, setMissionAltitude] = useState(DEFAULT_WAYPOINT_ALTITUDE);
+  const [returnToHome, setReturnToHome] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -23,6 +27,10 @@ export default function App() {
 
   const connected = telemetry?.connected ?? false;
 
+  function handleMapClick(point: { lat: number; lon: number }) {
+    setPlannedWaypoints((wps) => [...wps, { ...point, altitude: missionAltitude }]);
+  }
+
   return (
     <div className="app-shell">
       <Header />
@@ -31,9 +39,10 @@ export default function App() {
         <div className="left-column">
           <MapPanel
             telemetry={telemetry}
-            searchModeOn={searchModeOn}
-            pendingPoint={pendingPoint}
-            onMapClick={setPendingPoint}
+            missionPlanningOn={missionPlanningOn}
+            plannedWaypoints={plannedWaypoints}
+            returnToHome={returnToHome}
+            onMapClick={handleMapClick}
           />
         </div>
 
@@ -45,10 +54,14 @@ export default function App() {
           <MissionPlanCard
             telemetry={telemetry}
             connected={connected}
-            searchModeOn={searchModeOn}
-            setSearchModeOn={setSearchModeOn}
-            pendingPoint={pendingPoint}
-            setPendingPoint={setPendingPoint}
+            missionPlanningOn={missionPlanningOn}
+            setMissionPlanningOn={setMissionPlanningOn}
+            plannedWaypoints={plannedWaypoints}
+            setPlannedWaypoints={setPlannedWaypoints}
+            missionAltitude={missionAltitude}
+            setMissionAltitude={setMissionAltitude}
+            returnToHome={returnToHome}
+            setReturnToHome={setReturnToHome}
             onResult={setToast}
           />
 

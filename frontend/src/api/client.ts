@@ -1,4 +1,4 @@
-import type { CommandResult, TelemetryState } from "../types/telemetry";
+import type { CommandResult, MissionWaypoint, TelemetryState } from "../types/telemetry";
 
 async function post(path: string, body?: unknown): Promise<CommandResult> {
   const res = await fetch(`/api/drone/${path}`, {
@@ -21,6 +21,9 @@ export const droneApi = {
   rtl: () => post("rtl"),
   search: (lat: number, lon: number, altitude: number) => post("search", { lat, lon, altitude }),
   cancelSearch: () => post("search/cancel"),
+  startMission: (waypoints: MissionWaypoint[], returnToHome: boolean) =>
+    post("mission/start", { waypoints, return_to_home: returnToHome }),
+  cancelMission: () => post("mission/cancel"),
   getState: async (): Promise<TelemetryState> => {
     const res = await fetch("/api/drone/state");
     return res.json();

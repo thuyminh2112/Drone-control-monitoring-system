@@ -1,71 +1,97 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useState } from "react";
 import { droneApi } from "../api/client";
-import type { CommandResult, TelemetryState } from "../types/telemetry";
-
-type Point = { lat: number; lon: number };
+import type { CommandResult, MissionWaypoint, TelemetryState } from "../types/telemetry";
 
 // "Mission Plan" list, matching the reference layout. Only "Waypoint
-// Mission" is real today: selecting it is exactly the existing "Search
-// Mode" toggle (click a map point, fly there, hold position), just
-// presented as a mission-profile list instead of a standalone toggle
-// button. Grid Survey / Orbit & Loiter are shown for the target layout but
+// Mission" is real today: it's a QGroundControl-style multi-waypoint AUTO
+// mission — click points on the map in the order the vehicle should fly
+// them, each carrying its own altitude, then "Start Mission" uploads the
+// whole route via the MAVLink mission protocol and the vehicle flies it
+// autonomously in AUTO mode (auto-taking off first if it's on the ground).
+// Grid Survey / Orbit & Loiter are shown for the target layout but
 // intentionally disabled - there's no backend support for them yet, and a
 // clickable button that does nothing would be worse than an honest
 // "coming soon" state.
 export function MissionPlanCard({
   telemetry,
   connected,
-  searchModeOn,
-  setSearchModeOn,
-  pendingPoint,
-  setPendingPoint,
+  missionPlanningOn,
+  setMissionPlanningOn,
+  plannedWaypoints,
+  setPlannedWaypoints,
+  missionAltitude,
+  setMissionAltitude,
+  returnToHome,
+  setReturnToHome,
   onResult,
 }: {
   telemetry: TelemetryState | null;
   connected: boolean;
-  searchModeOn: boolean;
-  setSearchModeOn: Dispatch<SetStateAction<boolean>>;
-  pendingPoint: Point | null;
-  setPendingPoint: Dispatch<SetStateAction<Point | null>>;
+  missionPlanningOn: boolean;
+  setMissionPlanningOn: Dispatch<SetStateAction<boolean>>;
+  plannedWaypoints: MissionWaypoint[];
+  setPlannedWaypoints: Dispatch<SetStateAction<MissionWaypoint[]>>;
+  missionAltitude: number;
+  setMissionAltitude: Dispatch<SetStateAction<number>>;
+  returnToHome: boolean;
+  setReturnToHome: Dispatch<SetStateAction<boolean>>;
   onResult: (result: CommandResult) => void;
 }) {
-  const [searchAltitude, setSearchAltitude] = useState(15);
   const [busy, setBusy] = useState(false);
 
   const armed = telemetry?.armed ?? false;
-  const hasActiveTarget = telemetry?.search_target_lat != null;
-  const waypointActive = searchModeOn || hasActiveTarget;
-  const canStartMission = connected && armed && pendingPoint !== null && !busy;
+  const missionActive = telemetry?.mission_active ?? false;
+  const waypointItemActive = missionPlanningOn || missionActive;
+  const canStartMission = connected && armed && plannedWaypoints.length > 0 && !busy && !missionActive;
 
   async function toggleWaypointMission() {
-    const turningOff = searchModeOn;
-    setSearchModeOn((on) => !on);
-    if (!turningOff) return;
-    setPendingPoint(null);
-    if (!hasActiveTarget) return;
-    setBusy(true);
-    try {
-      const result = await droneApi.cancelSearch();
-      onResult(result);
-    } finally {
-      setBusy(false);
+    if (missionActive) {
+      setBusy(true);
+      try {
+        const result = await droneApi.cancelMission();
+        onResult(result);
+      } finally {
+        setBusy(false);
+        setMissionPlanningOn(false);
+        setPlannedWaypoints([]);
+      }
+      return;
     }
+    setMissionPlanningOn((on) => !on);
+  }
+
+  function removeWaypoint(index: number) {
+    setPlannedWaypoints((wps) => wps.filter((_, i) => i !== index));
+  }
+
+  function clearWaypoints() {
+    setPlannedWaypoints([]);
   }
 
   async function startMission() {
-    if (!pendingPoint) return;
+    if (plannedWaypoints.length === 0) return;
+    const ok = window.confirm(
+      `Start mission with ${plannedWaypoints.length} waypoint(s)?\n\nThe vehicle will take off automatically (if on the ground) and fly the planned route in AUTO mode.`,
+    );
+    if (!ok) return;
     setBusy(true);
     try {
-      const result = await droneApi.search(pendingPoint.lat, pendingPoint.lon, searchAltitude);
+      const result = await droneApi.startMission(plannedWaypoints, returnToHome);
       onResult(result);
-      if (result.success) setPendingPoint(null);
+      if (result.success) {
+        setPlannedWaypoints([]);
+        setMissionPlanningOn(false);
+        setReturnToHome(false);
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  const statusText = hasActiveTarget ? (telemetry?.search_arrived ? "At mission point" : "En route to mission point…") : null;
+  const statusText = missionActive
+    ? `Waypoint ${(telemetry?.mission_current_seq ?? 0) + 1} of ${telemetry?.mission_total ?? "?"} · AUTO`
+    : null;
 
   return (
     <div className="card">
@@ -73,13 +99,13 @@ export function MissionPlanCard({
       <div className="mission-list">
         <button
           type="button"
-          className={waypointActive ? "mission-item active" : "mission-item"}
-          disabled={!connected || !armed}
+          className={waypointItemActive ? "mission-item active" : "mission-item"}
+          disabled={!connected || busy}
           onClick={toggleWaypointMission}
         >
           <span>Waypoint Mission</span>
-          <span className={waypointActive ? "mission-item-tag active-tag" : "mission-item-tag soon-tag"}>
-            {waypointActive ? "Active" : "Ready"}
+          <span className={waypointItemActive ? "mission-item-tag active-tag" : "mission-item-tag soon-tag"}>
+            {missionActive ? "Active" : missionPlanningOn ? "Planning" : "Ready"}
           </span>
         </button>
         <div className="mission-item mission-item-disabled">
@@ -92,10 +118,16 @@ export function MissionPlanCard({
         </div>
       </div>
 
-      {searchModeOn && (
+      {missionActive && statusText && (
+        <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+          {statusText}
+        </p>
+      )}
+
+      {missionPlanningOn && !missionActive && (
         <>
           <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-            Click a point on the map to set the mission target.
+            Click points on the map in flight order. Each new point uses the altitude below.
           </p>
           <div className="command-panel" style={{ marginBottom: "var(--space-3)" }}>
             <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)", fontSize: "0.875rem" }}>
@@ -106,15 +138,58 @@ export function MissionPlanCard({
                 type="number"
                 min={2}
                 max={120}
-                value={searchAltitude}
-                onChange={(e) => setSearchAltitude(Number(e.target.value))}
+                value={missionAltitude}
+                onChange={(e) => setMissionAltitude(Number(e.target.value))}
               />
               m
             </label>
-            {statusText && (
-              <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>{statusText}</span>
+            {plannedWaypoints.length > 0 && (
+              <button type="button" className="btn" style={{ padding: "4px 10px", fontSize: "0.8125rem" }} onClick={clearWaypoints}>
+                Clear
+              </button>
             )}
+            <button
+              type="button"
+              className={returnToHome ? "btn btn-active" : "btn"}
+              style={{
+                padding: "4px 10px",
+                fontSize: "0.8125rem",
+                marginLeft: "auto",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+              onClick={() => setReturnToHome((v) => !v)}
+              title="Add a final leg back to the home position"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 11.5 L12 3 L21 11.5 V21 H14 V14 H10 V21 H3 Z" fill="currentColor" />
+              </svg>
+              Return to Home
+            </button>
           </div>
+
+          {plannedWaypoints.length > 0 && (
+            <ul className="waypoint-list">
+              {plannedWaypoints.map((wp, i) => (
+                <li key={i} className="waypoint-list-item">
+                  <span className="waypoint-list-index">{i + 1}</span>
+                  <span className="waypoint-list-coords">
+                    {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
+                  </span>
+                  <span className="waypoint-list-alt">{wp.altitude.toFixed(0)}m</span>
+                  <button
+                    type="button"
+                    className="waypoint-list-remove"
+                    aria-label={`Remove waypoint ${i + 1}`}
+                    onClick={() => removeWaypoint(i)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
 

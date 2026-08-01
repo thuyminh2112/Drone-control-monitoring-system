@@ -527,6 +527,7 @@ button {
   background: var(--color-surface-raised);
   font-size: 0.9375rem;
   font-weight: 500;
+  color: var(--color-text-muted);
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
@@ -565,13 +566,101 @@ button {
   background: var(--color-neutral-bg);
 }
 
-/* Default Leaflet marker is blue; shift hue to tell the three pins apart. */
-.marker-pending {
-  filter: hue-rotate(130deg) saturate(1.4);
+.waypoint-list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
 }
 
-.marker-target {
-  filter: hue-rotate(295deg) saturate(1.6);
+.waypoint-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: 0.8125rem;
+}
+
+.waypoint-list-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2b8fd6;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.waypoint-list-coords {
+  flex: 1 1 auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.waypoint-list-alt {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.waypoint-list-remove {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.waypoint-list-remove:hover {
+  color: var(--color-bad);
+}
+
+/* Numbered waypoint markers: "planned" = still being edited client-side and
+   not sent yet (blue, dashed route), "mission" = uploaded and part of the
+   active AUTO mission (accent color, solid route), "current" = the specific
+   waypoint the vehicle is flying to right now within that mission. */
+.leaflet-div-icon.waypoint-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.waypoint-marker-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.waypoint-marker-planned .waypoint-marker-badge {
+  background: #2b8fd6;
+}
+
+.waypoint-marker-mission .waypoint-marker-badge {
+  background: #c15f3c;
+}
+
+.waypoint-marker-current .waypoint-marker-badge {
+  background: #5be6c4;
+  color: #04231b;
 }
 
 /* Vehicle marker: a heading-pointing chevron (QGroundControl-style) instead
@@ -581,6 +670,18 @@ button {
 .leaflet-div-icon.vehicle-marker-icon {
   background: transparent;
   border: none;
+}
+
+/* House-shaped planned-home marker - same background-clearing treatment,
+   plus a grab cursor since it's draggable. */
+.leaflet-div-icon.home-marker-icon {
+  background: transparent;
+  border: none;
+  cursor: grab;
+}
+
+.leaflet-div-icon.home-marker-icon:active {
+  cursor: grabbing;
 }
 
 .vehicle-marker-rotate {

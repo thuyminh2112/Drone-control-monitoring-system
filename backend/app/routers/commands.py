@@ -20,6 +20,17 @@ class SearchRequest(BaseModel):
     altitude: float = 15.0
 
 
+class MissionWaypointRequest(BaseModel):
+    lat: float
+    lon: float
+    altitude: float = 15.0
+
+
+class MissionStartRequest(BaseModel):
+    waypoints: list[MissionWaypointRequest]
+    return_to_home: bool = False
+
+
 @router.get("/state", response_model=TelemetryState)
 async def get_state() -> TelemetryState:
     cached = await get_cached_state()
@@ -90,3 +101,29 @@ async def search(body: SearchRequest) -> CommandResult:
 @router.post("/search/cancel", response_model=CommandResult)
 async def cancel_search() -> CommandResult:
     return await asyncio.to_thread(mavlink_manager.submit_command, "cancel_search")
+
+
+@router.post("/mission/start", response_model=CommandResult)
+async def mission_start(body: MissionStartRequest) -> CommandResult:
+    state = mavlink_manager.get_state()
+    if not state.connected:
+        raise HTTPException(status_code=409, detail="Cannot start mission: vehicle is not connected")
+    if not state.armed:
+        raise HTTPException(status_code=409, detail="Cannot start mission: vehicle must be armed")
+    if not body.waypoints:
+        raise HTTPException(status_code=422, detail="Mission must include at least one waypoint")
+    for wp in body.waypoints:
+        if wp.altitude < 2.0 or wp.altitude > 120.0:
+            raise HTTPException(status_code=422, detail="Waypoint altitude must be between 2 and 120 meters")
+    return await asyncio.to_thread(
+        mavlink_manager.submit_command,
+        "mission_start",
+        client_timeout=45.0,
+        waypoints=[wp.model_dump() for wp in body.waypoints],
+        return_to_home=body.return_to_home,
+    )
+
+
+@router.post("/mission/cancel", response_model=CommandResult)
+async def mission_cancel() -> CommandResult:
+    return await asyncio.to_thread(mavlink_manager.submit_command, "mission_cancel")
