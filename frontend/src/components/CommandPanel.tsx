@@ -3,7 +3,9 @@ import { droneApi } from "../api/client";
 import type { CommandResult, TelemetryState } from "../types/telemetry";
 import { ConfirmDialog } from "./ConfirmDialog";
 
-type PendingAction = "disarm" | "takeoff" | "land" | "rtl" | null;
+type PendingAction = "disarm" | "land" | "rtl" | null;
+
+const DEFAULT_TAKEOFF_ALTITUDE = 10;
 
 export function CommandPanel({
   telemetry,
@@ -16,7 +18,6 @@ export function CommandPanel({
 }) {
   const [pending, setPending] = useState<PendingAction>(null);
   const [busy, setBusy] = useState(false);
-  const [altitude, setAltitude] = useState(10);
 
   const armed = telemetry?.armed ?? false;
   const inAir = armed && (telemetry?.alt_relative ?? 0) > 0.5;
@@ -54,7 +55,7 @@ export function CommandPanel({
         <button
           className="btn command-grid-span2"
           disabled={!connected || !armed || busy}
-          onClick={() => setPending("takeoff")}
+          onClick={() => run(() => droneApi.takeoff(DEFAULT_TAKEOFF_ALTITUDE))}
         >
           Takeoff
         </button>
@@ -83,28 +84,6 @@ export function CommandPanel({
           onConfirm={() => run(droneApi.disarm)}
           onCancel={() => setPending(null)}
         />
-      )}
-
-      {pending === "takeoff" && (
-        <ConfirmDialog
-          title="Confirm takeoff"
-          description="The vehicle will switch to GUIDED mode and climb to the target altitude."
-          confirmLabel="Takeoff"
-          onConfirm={() => run(() => droneApi.takeoff(altitude))}
-          onCancel={() => setPending(null)}
-        >
-          <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: 4 }}>
-            Target altitude (meters)
-          </label>
-          <input
-            className="dialog-input"
-            type="number"
-            min={1}
-            max={120}
-            value={altitude}
-            onChange={(e) => setAltitude(Number(e.target.value))}
-          />
-        </ConfirmDialog>
       )}
 
       {pending === "land" && (
