@@ -6,6 +6,7 @@ import { CommandPanel } from "./components/CommandPanel";
 import { FlightModeBadge } from "./components/FlightModeBadge";
 import { GpsPanel } from "./components/GpsPanel";
 import { Header } from "./components/Header";
+import { SearchPanel } from "./components/SearchPanel";
 import { useTelemetry } from "./hooks/useTelemetry";
 import type { CommandResult } from "./types/telemetry";
 
@@ -34,6 +35,10 @@ export default function App() {
       </div>
 
       <CommandPanel telemetry={telemetry} connected={connected} onResult={setToast} />
+
+      <div style={{ marginTop: "var(--space-4)" }}>
+        <SearchPanel telemetry={telemetry} connected={connected} onResult={setToast} />
+      </div>
 
       {toast && <div className={`toast ${toast.success ? "" : "error"}`}>{toast.message}</div>}
     </div>

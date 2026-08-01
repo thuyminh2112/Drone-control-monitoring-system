@@ -20,6 +20,12 @@ class TelemetryState(BaseModel):
     groundspeed: Optional[float] = None
     heading: Optional[float] = None
 
+    # Set while a "fly to point and orbit" search command is active; cleared
+    # by Arm/Disarm/Takeoff/RTL. Combine with flight_mode on the frontend to
+    # show "en route" (GUIDED) vs. "orbiting" (CIRCLE).
+    search_target_lat: Optional[float] = None
+    search_target_lon: Optional[float] = None
+
     last_heartbeat: Optional[datetime] = None
     timestamp: datetime = datetime.now(timezone.utc)
 

@@ -18,6 +18,7 @@ export const droneApi = {
   disarm: () => post("disarm"),
   takeoff: (altitude: number) => post("takeoff", { altitude }),
   rtl: () => post("rtl"),
+  search: (lat: number, lon: number) => post("search", { lat, lon }),
   getState: async (): Promise<TelemetryState> => {
     const res = await fetch("/api/drone/state");
     return res.json();

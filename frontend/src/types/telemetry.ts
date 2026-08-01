@@ -14,6 +14,9 @@ export interface TelemetryState {
   groundspeed: number | null;
   heading: number | null;
 
+  search_target_lat: number | null;
+  search_target_lon: number | null;
+
   last_heartbeat: string | null;
   timestamp: string;
 }

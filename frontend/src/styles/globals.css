@@ -266,3 +266,19 @@ button {
   font-size: 0.9375rem;
   margin-bottom: var(--space-4);
 }
+
+.search-map {
+  height: 320px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+/* Default Leaflet marker is blue; shift hue to tell the three pins apart. */
+.marker-pending {
+  filter: hue-rotate(130deg) saturate(1.4);
+}
+
+.marker-target {
+  filter: hue-rotate(295deg) saturate(1.6);
+}

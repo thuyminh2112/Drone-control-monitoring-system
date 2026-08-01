@@ -14,6 +14,11 @@ class TakeoffRequest(BaseModel):
     altitude: float = 10.0
 
 
+class SearchRequest(BaseModel):
+    lat: float
+    lon: float
+
+
 @router.get("/state", response_model=TelemetryState)
 async def get_state() -> TelemetryState:
     cached = await get_cached_state()
@@ -48,3 +53,13 @@ async def rtl() -> CommandResult:
     if not state.connected:
         raise HTTPException(status_code=409, detail="Cannot RTL: vehicle is not connected")
     return await asyncio.to_thread(mavlink_manager.submit_command, "rtl")
+
+
+@router.post("/search", response_model=CommandResult)
+async def search(body: SearchRequest) -> CommandResult:
+    state = mavlink_manager.get_state()
+    if not state.connected:
+        raise HTTPException(status_code=409, detail="Cannot start search: vehicle is not connected")
+    if not state.armed or (state.alt_relative or 0) < 0.5:
+        raise HTTPException(status_code=409, detail="Cannot start search: vehicle must be armed and airborne")
+    return await asyncio.to_thread(mavlink_manager.submit_command, "search", lat=body.lat, lon=body.lon)

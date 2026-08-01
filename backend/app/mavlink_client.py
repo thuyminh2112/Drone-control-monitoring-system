@@ -1,4 +1,5 @@
 import logging
+import math
 import queue
 import threading
 import time
@@ -32,8 +33,24 @@ ARDUCOPTER_MODES_BY_NAME = {name: num for num, name in ARDUCOPTER_MODES.items()}
 NOT_ARMABLE_ON_GROUND = {"RTL", "SMART_RTL", "AUTO_RTL", "AUTO", "LAND", "CIRCLE", "AUTOTUNE"}
 STANDBY_MODE = "STABILIZE"
 
+# "Search" flow: DO_REPOSITION flies to the chosen point in GUIDED mode;
+# once within this radius the vehicle is switched into ArduCopter's native
+# CIRCLE mode to orbit the point (radius/rate controlled by CIRCLE_RADIUS/
+# CIRCLE_RATE params on the vehicle, left at SITL defaults here).
+SEARCH_ARRIVAL_RADIUS_METERS = 5.0
+SEARCH_ORBIT_MODE = "CIRCLE"
+
 RECONNECT_DELAY_SECONDS = 3.0
 POLL_TIMEOUT_SECONDS = 0.2
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    earth_radius_m = 6371000.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * earth_radius_m * math.asin(math.sqrt(a))
 
 
 class _CommandRequest:
@@ -101,6 +118,7 @@ class MAVLinkManager:
                 logger.warning("MAVLink recv error, reconnecting: %s", exc)
                 self._reconnect()
             self._check_heartbeat_timeout()
+            self._check_search_arrival()
 
     def _connect(self) -> None:
         while not self._stop_event.is_set():
@@ -129,6 +147,21 @@ class MAVLinkManager:
                 return
             if time.monotonic() - self._last_heartbeat_monotonic > settings.heartbeat_timeout_seconds:
                 self._state.connected = False
+
+    def _check_search_arrival(self) -> None:
+        with self._lock:
+            has_target = self._state.search_target_lat is not None and self._state.search_target_lon is not None
+            en_route = has_target and self._state.flight_mode == "GUIDED"
+            if not en_route or self._state.lat is None or self._state.lon is None:
+                return
+            target_lat, target_lon = self._state.search_target_lat, self._state.search_target_lon
+            cur_lat, cur_lon = self._state.lat, self._state.lon
+        distance = _haversine_meters(target_lat, target_lon, cur_lat, cur_lon)
+        if distance <= SEARCH_ARRIVAL_RADIUS_METERS:
+            if self._set_mode(SEARCH_ORBIT_MODE):
+                logger.info("Arrived at search point (%.1fm), orbiting in %s", distance, SEARCH_ORBIT_MODE)
+            else:
+                logger.warning("Arrived at search point but failed to switch to %s", SEARCH_ORBIT_MODE)
 
     def _handle_message(self, msg) -> None:
         msg_type = msg.get_type()
@@ -186,6 +219,13 @@ class MAVLinkManager:
                 request.done.set()
 
     def _dispatch_command(self, name: str, **kwargs) -> CommandResult:
+        if name != "search":
+            # Arm/Disarm/Takeoff/RTL all supersede any in-progress search —
+            # clear it so the arrival check doesn't later hijack the mode
+            # the new command just set.
+            with self._lock:
+                self._state.search_target_lat = None
+                self._state.search_target_lon = None
         if name == "arm":
             return self._cmd_arm()
         if name == "disarm":
@@ -194,6 +234,8 @@ class MAVLinkManager:
             return self._cmd_takeoff(kwargs.get("altitude", 10.0))
         if name == "rtl":
             return self._cmd_rtl()
+        if name == "search":
+            return self._cmd_search(kwargs["lat"], kwargs["lon"])
         raise ValueError(f"Unknown command: {name}")
 
     def _cmd_arm(self) -> CommandResult:
@@ -232,6 +274,26 @@ class MAVLinkManager:
             return CommandResult(success=True, message="RTL engaged", mav_result="MODE_CHANGED")
         return CommandResult(success=False, message="RTL failed: could not switch to RTL mode")
 
+    def _cmd_search(self, lat: float, lon: float) -> CommandResult:
+        target_alt = self._state.alt_relative or 10.0
+        ack = self._send_command_int(
+            mavutil.mavlink.MAV_CMD_DO_REPOSITION,
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            param1=-1,  # keep current groundspeed
+            param2=1,  # MAV_DO_REPOSITION_FLAGS_CHANGE_MODE - switch to GUIDED
+            param4=float("nan"),  # keep current yaw
+            x=int(lat * 1e7),
+            y=int(lon * 1e7),
+            z=target_alt,
+        )
+        result = self._ack_to_result(ack, "Search")
+        if result.success:
+            with self._lock:
+                self._state.search_target_lat = lat
+                self._state.search_target_lon = lon
+            result.message = f"Heading to search point ({lat:.5f}, {lon:.5f}) — will orbit on arrival"
+        return result
+
     def _set_mode(self, mode_name: str) -> bool:
         mode_id = ARDUCOPTER_MODES_BY_NAME.get(mode_name)
         if mode_id is None or self._master is None:
@@ -263,6 +325,21 @@ class MAVLinkManager:
             command,
             0,
             param1, param2, param3, param4, param5, param6, param7,
+        )
+        return self._wait_for_ack(command)
+
+    def _send_command_int(self, command: int, frame: int = 0, param1=0, param2=0, param3=0, param4=0, x=0, y=0, z=0):
+        with self._lock:
+            self._last_statustext = None
+        self._master.mav.command_int_send(
+            self._master.target_system,
+            self._master.target_component,
+            frame,
+            command,
+            0,  # current
+            0,  # autocontinue
+            param1, param2, param3, param4,
+            x, y, z,
         )
         return self._wait_for_ack(command)
 
