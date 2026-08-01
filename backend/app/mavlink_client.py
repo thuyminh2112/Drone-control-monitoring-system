@@ -57,6 +57,7 @@ class MAVLinkManager:
         self._command_queue: "queue.Queue[_CommandRequest]" = queue.Queue()
         self._stop_event = threading.Event()
         self._last_heartbeat_monotonic: Optional[float] = None
+        self._last_statustext: Optional[str] = None
         self._thread = threading.Thread(target=self._run, daemon=True, name="mavlink-client")
 
     def start(self) -> None:
@@ -149,6 +150,14 @@ class MAVLinkManager:
                     self._state.battery_percent = float(msg.battery_remaining)
                 if msg.voltage_battery != 65535:
                     self._state.battery_voltage = msg.voltage_battery / 1000.0
+            elif msg_type == "STATUSTEXT":
+                text = msg.text if isinstance(msg.text, str) else msg.text.decode(errors="replace")
+                text = text.rstrip("\x00")
+                self._last_statustext = text
+                # severity <= 4 is ERROR/CRITICAL/ALERT/EMERGENCY in MAV_SEVERITY
+                log = logger.warning if msg.severity <= 4 else logger.info
+                log("SITL STATUSTEXT: %s", text)
+                return
             else:
                 return
             self._state.timestamp = datetime.now(timezone.utc)
@@ -233,6 +242,8 @@ class MAVLinkManager:
         return predicate()
 
     def _send_command_long(self, command: int, param1=0, param2=0, param3=0, param4=0, param5=0, param6=0, param7=0):
+        with self._lock:
+            self._last_statustext = None
         self._master.mav.command_long_send(
             self._master.target_system,
             self._master.target_component,
@@ -255,8 +266,7 @@ class MAVLinkManager:
                 return msg
         return None
 
-    @staticmethod
-    def _ack_to_result(ack, label: str) -> CommandResult:
+    def _ack_to_result(self, ack, label: str) -> CommandResult:
         if ack is None:
             return CommandResult(success=False, message=f"{label}: no acknowledgement received (timeout)")
         result_enum = mavutil.mavlink.enums.get("MAV_RESULT", {})
@@ -264,7 +274,10 @@ class MAVLinkManager:
         result_name = result_entry.name if result_entry else str(ack.result)
         success = ack.result == mavutil.mavlink.MAV_RESULT_ACCEPTED
         verb = "accepted" if success else "rejected"
-        return CommandResult(success=success, message=f"{label} {verb}: {result_name}", mav_result=result_name)
+        message = f"{label} {verb}: {result_name}"
+        if not success and self._last_statustext:
+            message = f"{message} — {self._last_statustext}"
+        return CommandResult(success=success, message=message, mav_result=result_name)
 
 
 mavlink_manager = MAVLinkManager(settings.mavlink_connection)
