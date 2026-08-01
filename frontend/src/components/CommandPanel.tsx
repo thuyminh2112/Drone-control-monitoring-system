@@ -3,8 +3,6 @@ import { droneApi } from "../api/client";
 import type { CommandResult, TelemetryState } from "../types/telemetry";
 import { ConfirmDialog } from "./ConfirmDialog";
 
-type PendingAction = "disarm" | "land" | "rtl" | null;
-
 const DEFAULT_TAKEOFF_ALTITUDE = 10;
 
 export function CommandPanel({
@@ -16,7 +14,7 @@ export function CommandPanel({
   connected: boolean;
   onResult: (result: CommandResult) => void;
 }) {
-  const [pending, setPending] = useState<PendingAction>(null);
+  const [confirmingDisarm, setConfirmingDisarm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const armed = telemetry?.armed ?? false;
@@ -30,8 +28,26 @@ export function CommandPanel({
       onResult(result);
     } finally {
       setBusy(false);
-      setPending(null);
+      setConfirmingDisarm(false);
     }
+  }
+
+  // Land/RTL use the browser's own native confirm() instead of the custom
+  // dialog component - it's a synchronous, blocking call with no CSS,
+  // z-index, or React state of its own, so there's no custom rendering
+  // layer that can silently fail to show up.
+  function handleLandClick() {
+    const ok = window.confirm(
+      "Land now?\n\nThe vehicle will switch to LAND mode and descend straight down at its current position.",
+    );
+    if (ok) run(droneApi.land);
+  }
+
+  function handleRtlClick() {
+    const ok = window.confirm(
+      "Return to launch?\n\nThe vehicle will abort the current sortie and autonomously fly back to the home position to land.",
+    );
+    if (ok) run(droneApi.rtl);
   }
 
   return (
@@ -48,7 +64,7 @@ export function CommandPanel({
         <button
           className="btn btn-danger command-grid-span3"
           disabled={!connected || !armed || busy}
-          onClick={() => (inAir ? setPending("disarm") : run(droneApi.disarm))}
+          onClick={() => (inAir ? setConfirmingDisarm(true) : run(droneApi.disarm))}
         >
           Disarm
         </button>
@@ -62,48 +78,27 @@ export function CommandPanel({
         <button
           className={flightMode === "LAND" ? "btn btn-active command-grid-span2" : "btn command-grid-span2"}
           disabled={!connected || !armed || busy}
-          onClick={() => setPending("land")}
+          onClick={handleLandClick}
         >
           Land
         </button>
         <button
           className={flightMode === "RTL" ? "btn btn-active command-grid-span2" : "btn btn-danger command-grid-span2"}
           disabled={!connected || !armed || busy}
-          onClick={() => setPending("rtl")}
+          onClick={handleRtlClick}
         >
           RTL
         </button>
       </div>
 
-      {pending === "disarm" && (
+      {confirmingDisarm && (
         <ConfirmDialog
           title="Disarm while airborne?"
           description="The vehicle appears to be in flight. Disarming now will cut the motors immediately and it will fall."
           confirmLabel="Disarm anyway"
           danger
           onConfirm={() => run(droneApi.disarm)}
-          onCancel={() => setPending(null)}
-        />
-      )}
-
-      {pending === "land" && (
-        <ConfirmDialog
-          title="Land now?"
-          description="The vehicle will switch to LAND mode and descend straight down at its current position. ArduCopter sets the launch point to wherever the vehicle was armed, so if it hasn't moved since arming, this is the same as Return to Launch — the two only diverge once it has flown away from that point."
-          confirmLabel="Land"
-          onConfirm={() => run(droneApi.land)}
-          onCancel={() => setPending(null)}
-        />
-      )}
-
-      {pending === "rtl" && (
-        <ConfirmDialog
-          title="Return to launch?"
-          description="The vehicle will abort the current sortie and autonomously fly back to the home position to land."
-          confirmLabel="Return to launch"
-          danger
-          onConfirm={() => run(droneApi.rtl)}
-          onCancel={() => setPending(null)}
+          onCancel={() => setConfirmingDisarm(false)}
         />
       )}
     </div>
