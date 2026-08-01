@@ -53,8 +53,7 @@ export function SearchPanel({
   const [busy, setBusy] = useState(false);
 
   const armed = telemetry?.armed ?? false;
-  const airborne = (telemetry?.alt_relative ?? 0) > 0.5;
-  const canStartSearch = connected && armed && airborne && pendingPoint !== null && !busy;
+  const canStartSearch = connected && armed && pendingPoint !== null && !busy;
 
   // Create the map once.
   useEffect(() => {
@@ -155,7 +154,7 @@ export function SearchPanel({
       <div className="command-panel" style={{ marginBottom: "var(--space-3)" }}>
         <button
           className={searchModeOn ? "btn btn-primary" : "btn"}
-          disabled={!connected}
+          disabled={!connected || !armed}
           onClick={() => setSearchModeOn((on) => !on)}
         >
           {searchModeOn ? "Search Mode: On" : "Search Mode"}
@@ -180,7 +179,8 @@ export function SearchPanel({
       </div>
       {searchModeOn && (
         <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-          Click a point on the map to select the search target. The vehicle will orbit it at the altitude set above.
+          Click a point on the map to select the search target. Starting a search takes off (if not already
+          airborne) to the altitude set above, flies there, and orbits it.
         </p>
       )}
       <div ref={mapContainerRef} className="search-map" />

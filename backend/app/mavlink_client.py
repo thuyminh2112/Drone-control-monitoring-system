@@ -124,11 +124,11 @@ class MAVLinkManager:
         with self._lock:
             return self._state.model_copy()
 
-    def submit_command(self, name: str, **kwargs) -> CommandResult:
+    def submit_command(self, name: str, client_timeout: Optional[float] = None, **kwargs) -> CommandResult:
         """Blocking call — run via asyncio.to_thread from request handlers."""
         request = _CommandRequest(name, kwargs)
         self._command_queue.put(request)
-        wait_timeout = settings.command_ack_timeout_seconds + 2
+        wait_timeout = client_timeout if client_timeout is not None else settings.command_ack_timeout_seconds + 2
         if not request.done.wait(timeout=wait_timeout):
             return CommandResult(success=False, message="Command timed out waiting for MAVLink thread")
         return request.result or CommandResult(success=False, message="Unknown error processing command")
@@ -348,6 +348,23 @@ class MAVLinkManager:
             self._state.orbiting = False
         self._orbit_center = None
         self._orbit_altitude = target_alt
+
+        airborne = (self._state.alt_relative or 0) > 0.5
+        if not airborne:
+            if not self._set_mode("GUIDED"):
+                return CommandResult(success=False, message="Search failed: could not switch to GUIDED mode for takeoff")
+            takeoff_ack = self._send_command_long(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, param7=target_alt)
+            takeoff_result = self._ack_to_result(takeoff_ack, "Search takeoff")
+            if not takeoff_result.success:
+                return takeoff_result
+            # ArduCopter can reject DO_REPOSITION while still flagged
+            # "landed" for the first moment of the takeoff sequence — wait
+            # for actual liftoff before sending the travel command.
+            liftoff_threshold = min(1.5, target_alt * 0.3)
+            lifted = self._wait_until(lambda: (self._state.alt_relative or 0) > liftoff_threshold, timeout=15.0)
+            if not lifted:
+                return CommandResult(success=False, message="Search failed: vehicle did not leave the ground in time")
+
         ack = self._send_command_int(
             mavutil.mavlink.MAV_CMD_DO_REPOSITION,
             frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,

@@ -52,14 +52,17 @@ commands to run everything locally.
 
 ## Search mode
 
-Flow: **Arm → Takeoff → toggle "Search Mode" → click a point on the map →
-set the search altitude → "Start Search"**.
+Flow: **Arm → toggle "Search Mode" → click a point on the map → set the
+search altitude → "Start Search"**. No separate Takeoff step needed — if
+the vehicle is still on the ground, Start Search takes off to the search
+altitude itself before flying to the point.
 
-The vehicle flies to the clicked point in GUIDED mode (via
-`MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS software like
-QGroundControl uses) at the altitude you set, then orbits the point —
-simulating the vehicle surveying that location during a search sortie.
-Arm/Disarm/Takeoff/RTL all cancel an in-progress search.
+The vehicle climbs (if grounded) and flies to the clicked point in GUIDED
+mode (via `MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS
+software like QGroundControl uses) at the altitude you set, then orbits the
+point — simulating the vehicle surveying that location during a search
+sortie. If already airborne, it just repositions to the new point/altitude
+directly. Arm/Disarm/Takeoff/RTL all cancel an in-progress search.
 
 The orbit is driven by the backend itself (repeatedly repositioning to a
 point walking around the target's circumference, still in GUIDED mode)
