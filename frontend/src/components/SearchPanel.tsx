@@ -6,6 +6,7 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { useEffect, useRef, useState } from "react";
 import { droneApi } from "../api/client";
 import type { CommandResult, TelemetryState } from "../types/telemetry";
+import { CompassWidget } from "./CompassWidget";
 
 // Vite bundles Leaflet's default marker images under a hashed path that its
 // built-in CSS doesn't know about — point the default icon at the imported
@@ -218,7 +219,10 @@ export function SearchPanel({
           airborne) to the altitude set above, flies there, and holds position.
         </p>
       )}
-      <div ref={mapContainerRef} className="search-map" />
+      <div className="search-map-wrapper">
+        <div ref={mapContainerRef} className="search-map" />
+        <CompassWidget heading={telemetry?.heading ?? null} />
+      </div>
     </div>
   );
 }
