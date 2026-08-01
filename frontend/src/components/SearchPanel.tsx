@@ -79,7 +79,9 @@ export function SearchPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep the vehicle's live position marker in sync with telemetry.
+  // Keep the vehicle's live position marker in sync with telemetry, and pan
+  // the map to follow it once it flies outside the current view (without
+  // fighting the operator's own manual pan/zoom while it's still in view).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || telemetry?.lat == null || telemetry?.lon == null) return;
@@ -94,8 +96,12 @@ export function SearchPanel({
       })
         .bindTooltip("Vehicle")
         .addTo(map);
+      map.panTo(pos);
     } else {
       vehicleMarkerRef.current.setLatLng(pos);
+      if (!map.getBounds().pad(-0.1).contains(pos)) {
+        map.panTo(pos);
+      }
     }
   }, [telemetry?.lat, telemetry?.lon]);
 

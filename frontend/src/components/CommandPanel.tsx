@@ -93,7 +93,7 @@ export function CommandPanel({
       {pending === "land" && (
         <ConfirmDialog
           title="Land now?"
-          description="The vehicle will switch to LAND mode and descend straight down at its current position (it will not fly back to the launch point first — use Return to Launch for that)."
+          description="The vehicle will switch to LAND mode and descend straight down at its current position. ArduCopter sets the launch point to wherever the vehicle was armed, so if it hasn't moved since arming, this is the same as Return to Launch — the two only diverge once it has flown away from that point."
           confirmLabel="Land"
           onConfirm={() => run(droneApi.land)}
           onCancel={() => setPending(null)}
