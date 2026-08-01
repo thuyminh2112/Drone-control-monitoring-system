@@ -53,14 +53,22 @@ commands to run everything locally.
 ## Search mode
 
 Flow: **Arm → Takeoff → toggle "Search Mode" → click a point on the map →
-"Start Search"**.
+set the search altitude → "Start Search"**.
 
 The vehicle flies to the clicked point in GUIDED mode (via
 `MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS software like
-QGroundControl uses), then automatically switches to ArduCopter's native
-**CIRCLE** mode once within 5m to orbit the point — simulating the vehicle
-surveying that location during a search sortie. Arm/Disarm/Takeoff/RTL all
-cancel an in-progress search.
+QGroundControl uses) at the altitude you set, then orbits the point —
+simulating the vehicle surveying that location during a search sortie.
+Arm/Disarm/Takeoff/RTL all cancel an in-progress search.
+
+The orbit is driven by the backend itself (repeatedly repositioning to a
+point walking around the target's circumference, still in GUIDED mode)
+rather than switching to ArduCopter's native CIRCLE flight mode. CIRCLE was
+tried first and rejected: its altitude, like Loiter/AltHold, is governed by
+the RC throttle stick, not by MAVLink commands — with no real transmitter
+attached (MAVLink-only control, as here), that reads as zero throttle and
+the vehicle dropped straight to the ground on entering it. GUIDED has no
+such dependency, so the orbit stays fully autonomous.
 
 ## Quick start
 

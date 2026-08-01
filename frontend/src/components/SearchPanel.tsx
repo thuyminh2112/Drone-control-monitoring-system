@@ -49,6 +49,7 @@ export function SearchPanel({
 
   const [searchModeOn, setSearchModeOn] = useState(false);
   const [pendingPoint, setPendingPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [searchAltitude, setSearchAltitude] = useState(15);
   const [busy, setBusy] = useState(false);
 
   const armed = telemetry?.armed ?? false;
@@ -137,7 +138,7 @@ export function SearchPanel({
     if (!pendingPoint) return;
     setBusy(true);
     try {
-      const result = await droneApi.search(pendingPoint.lat, pendingPoint.lon);
+      const result = await droneApi.search(pendingPoint.lat, pendingPoint.lon, searchAltitude);
       onResult(result);
       if (result.success) setPendingPoint(null);
     } finally {
@@ -146,11 +147,7 @@ export function SearchPanel({
   }
 
   const hasActiveTarget = telemetry?.search_target_lat != null;
-  const statusText = hasActiveTarget
-    ? telemetry?.flight_mode === "CIRCLE"
-      ? "Orbiting search point"
-      : "Heading to search point…"
-    : null;
+  const statusText = hasActiveTarget ? (telemetry?.orbiting ? "Orbiting search point" : "Heading to search point…") : null;
 
   return (
     <div className="card">
@@ -163,6 +160,19 @@ export function SearchPanel({
         >
           {searchModeOn ? "Search Mode: On" : "Search Mode"}
         </button>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)", fontSize: "0.875rem" }}>
+          Altitude to search
+          <input
+            className="dialog-input"
+            style={{ width: 72, margin: 0 }}
+            type="number"
+            min={2}
+            max={120}
+            value={searchAltitude}
+            onChange={(e) => setSearchAltitude(Number(e.target.value))}
+          />
+          m
+        </label>
         <button className="btn btn-primary" disabled={!canStartSearch} onClick={startSearch}>
           Start Search
         </button>
@@ -170,7 +180,7 @@ export function SearchPanel({
       </div>
       {searchModeOn && (
         <p style={{ margin: "0 0 var(--space-3)", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-          Click a point on the map to select the search target.
+          Click a point on the map to select the search target. The vehicle will orbit it at the altitude set above.
         </p>
       )}
       <div ref={mapContainerRef} className="search-map" />

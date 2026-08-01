@@ -16,6 +16,7 @@ export interface TelemetryState {
 
   search_target_lat: number | null;
   search_target_lon: number | null;
+  orbiting: boolean;
 
   last_heartbeat: string | null;
   timestamp: string;

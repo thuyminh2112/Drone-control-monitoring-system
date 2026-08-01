@@ -21,10 +21,12 @@ class TelemetryState(BaseModel):
     heading: Optional[float] = None
 
     # Set while a "fly to point and orbit" search command is active; cleared
-    # by Arm/Disarm/Takeoff/RTL. Combine with flight_mode on the frontend to
-    # show "en route" (GUIDED) vs. "orbiting" (CIRCLE).
+    # by Arm/Disarm/Takeoff/RTL. `orbiting` flips true once the vehicle has
+    # arrived and the backend is actively driving a GUIDED-mode orbit
+    # around the target (see mavlink_client._drive_orbit).
     search_target_lat: Optional[float] = None
     search_target_lon: Optional[float] = None
+    orbiting: bool = False
 
     last_heartbeat: Optional[datetime] = None
     timestamp: datetime = datetime.now(timezone.utc)

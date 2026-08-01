@@ -17,6 +17,7 @@ class TakeoffRequest(BaseModel):
 class SearchRequest(BaseModel):
     lat: float
     lon: float
+    altitude: float = 15.0
 
 
 @router.get("/state", response_model=TelemetryState)
@@ -62,4 +63,8 @@ async def search(body: SearchRequest) -> CommandResult:
         raise HTTPException(status_code=409, detail="Cannot start search: vehicle is not connected")
     if not state.armed or (state.alt_relative or 0) < 0.5:
         raise HTTPException(status_code=409, detail="Cannot start search: vehicle must be armed and airborne")
-    return await asyncio.to_thread(mavlink_manager.submit_command, "search", lat=body.lat, lon=body.lon)
+    if body.altitude < 2.0 or body.altitude > 120.0:
+        raise HTTPException(status_code=422, detail="Search altitude must be between 2 and 120 meters")
+    return await asyncio.to_thread(
+        mavlink_manager.submit_command, "search", lat=body.lat, lon=body.lon, altitude=body.altitude
+    )
