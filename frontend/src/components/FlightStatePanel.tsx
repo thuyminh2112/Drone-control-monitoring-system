@@ -87,7 +87,7 @@ export function FlightStatePanel({ telemetry, wsStatus }: { telemetry: Telemetry
         </div>
         <div className="status-bar-item">
           <div className="metric-label">Arming status</div>
-          <StatusBadge tone={armed ? "bad" : "neutral"} label={armed ? "Armed" : "Disarmed"} />
+          <StatusBadge tone={armed ? "good" : "bad"} label={armed ? "Armed" : "Disarmed"} />
         </div>
         <div className="status-bar-item">
           <div className="metric-label">Vehicle</div>
