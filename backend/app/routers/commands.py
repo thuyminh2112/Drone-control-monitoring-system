@@ -65,12 +65,12 @@ async def search(body: SearchRequest) -> CommandResult:
         raise HTTPException(status_code=409, detail="Cannot start search: vehicle must be armed")
     if body.altitude < 2.0 or body.altitude > 120.0:
         raise HTTPException(status_code=422, detail="Search altitude must be between 2 and 120 meters")
-    # Grounded vehicles take off to the search altitude first, which can
-    # take longer than a normal command ack.
+    # Grounded vehicles climb to the full search altitude before moving
+    # horizontally, which can take well past a normal command ack timeout.
     return await asyncio.to_thread(
         mavlink_manager.submit_command,
         "search",
-        client_timeout=25.0,
+        client_timeout=70.0,
         lat=body.lat,
         lon=body.lon,
         altitude=body.altitude,

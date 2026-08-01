@@ -54,14 +54,24 @@ commands to run everything locally.
 
 ## Return to Launch
 
-By default ArduCopter's RTL first climbs to a minimum altitude (`RTL_ALT`,
-~15m) before flying home, in case there are obstacles between the vehicle
-and home. The backend sets `RTL_ALT=0` on connect (via `PARAM_SET`), which
-tells ArduCopter to hold whatever altitude it's already at instead — RTL
-flies straight back to the launch point at the current altitude, then
-descends and lands once over it. To restore the climb-first default for a
-specific test, run `param set RTL_ALT 1500` (centimeters) in the MAVProxy
-console — it'll be reset back to 0 the next time the backend connects.
+By default ArduCopter's RTL first climbs to a minimum altitude (~15m)
+before flying home, in case there are obstacles between the vehicle and
+home. The backend sets that altitude to 0 on connect (via `PARAM_SET`),
+which tells ArduCopter to hold whatever altitude it's already at instead —
+RTL flies straight back to the launch point at the current altitude, then
+descends and lands once over it, confirmed via a real MAVLink test: the
+vehicle held 15.00m while distance-to-home dropped from 121m to 0m, only
+descending after arriving.
+
+The parameter is set under both names — `RTL_ALT_M` (meters) and `RTL_ALT`
+(centimeters) — since recent ArduCopter builds renamed it as part of an
+ongoing metric-units migration and older builds may still use the original
+name; whichever one the connected firmware actually has gets confirmed via
+its `PARAM_VALUE` echo (`PARAM_SET` is fire-and-forget over UDP, so the
+confirmation matters — the backend retries every 2s until it arrives). To
+restore the climb-first default for a specific test, run
+`param set RTL_ALT_M 15` in the MAVProxy console — it resets to 0 the next
+time the backend connects.
 
 ## Search mode
 
@@ -70,12 +80,17 @@ search altitude → "Start Search"**. No separate Takeoff step needed — if
 the vehicle is still on the ground, Start Search takes off to the search
 altitude itself before flying to the point.
 
-The vehicle climbs (if grounded) and flies to the clicked point in GUIDED
-mode (via `MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS
-software like QGroundControl uses) at the altitude you set, then orbits the
-point — simulating the vehicle surveying that location during a search
-sortie. If already airborne, it just repositions to the new point/altitude
-directly. Arm/Disarm/Takeoff/RTL all cancel an in-progress search, and so
+If grounded, the vehicle climbs straight up to the search altitude first
+(`MAV_CMD_NAV_TAKEOFF`) — the backend waits until it's essentially at that
+altitude before sending any horizontal movement, so it goes straight up
+then straight across rather than climbing and translating at the same
+time. It then flies to the clicked point in GUIDED mode (via
+`MAV_CMD_DO_REPOSITION`, the same "fly to here" mechanism GCS software like
+QGroundControl uses), then orbits the point — simulating the vehicle
+surveying that location during a search sortie. If already airborne, it
+just repositions to the new point/altitude directly (climbing/descending
+and moving horizontally together). Arm/Disarm/Takeoff/RTL all cancel an
+in-progress search, and so
 does toggling "Search Mode" off while a search is en route or orbiting —
 the vehicle stops where it is and holds position (GUIDED mode holds the
 last commanded point once no new setpoint follows).

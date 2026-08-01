@@ -52,6 +52,7 @@ ORBIT_UPDATE_INTERVAL_SECONDS = 1.5
 
 RECONNECT_DELAY_SECONDS = 3.0
 POLL_TIMEOUT_SECONDS = 0.2
+RTL_ALT_RETRY_INTERVAL_SECONDS = 2.0
 
 EARTH_RADIUS_METERS = 6371000.0
 
@@ -112,6 +113,7 @@ class MAVLinkManager:
         self._orbit_bearing_deg: float = 0.0
         self._orbit_last_update_monotonic: float = 0.0
         self._rtl_alt_configured: bool = False
+        self._rtl_alt_last_attempt_monotonic: float = 0.0
         self._thread = threading.Thread(target=self._run, daemon=True, name="mavlink-client")
 
     def start(self) -> None:
@@ -182,23 +184,37 @@ class MAVLinkManager:
                 self._state.connected = False
 
     def _ensure_rtl_alt_configured(self) -> None:
-        """RTL_ALT=0 tells ArduCopter's RTL to hold the current altitude on
-        the way home instead of first climbing to its default RTL altitude
-        (~15m). Set once per connection since SITL resets params on restart."""
+        """Setting the RTL-climb-altitude parameter to 0 tells ArduCopter's
+        RTL to hold the current altitude on the way home instead of first
+        climbing to its default RTL altitude (~15m). The parameter was
+        renamed from `RTL_ALT` (centimeters) to `RTL_ALT_M` (meters) in
+        recent ArduCopter builds as part of a metric-units migration, so
+        both names are set here for compatibility across versions. PARAM_SET
+        is fire-and-forget over UDP, so this retries every few seconds until
+        ArduCopter's PARAM_VALUE echo confirms one of them actually took
+        (see the PARAM_VALUE branch in _handle_message), rather than
+        assuming success as soon as the request is sent."""
         if self._rtl_alt_configured or self._master is None:
             return
         with self._lock:
             if not self._state.connected:
                 return
-        self._master.mav.param_set_send(
-            self._master.target_system,
-            self._master.target_component,
-            b"RTL_ALT",
-            0.0,
-            mavutil.mavlink.MAV_PARAM_TYPE_REAL32,
-        )
-        self._rtl_alt_configured = True
-        logger.info("Set RTL_ALT=0 (RTL returns at current altitude, no forced climb)")
+        now = time.monotonic()
+        if now - self._rtl_alt_last_attempt_monotonic < RTL_ALT_RETRY_INTERVAL_SECONDS:
+            return
+        self._rtl_alt_last_attempt_monotonic = now
+        # target_component from the connection defaults to 0 ("broadcast"),
+        # which ArduCopter's parameter subsystem silently ignores - unlike
+        # COMMAND_LONG, it wants the autopilot's exact component ID.
+        for param_name in (b"RTL_ALT_M", b"RTL_ALT"):
+            self._master.mav.param_set_send(
+                self._master.target_system,
+                mavutil.mavlink.MAV_COMP_ID_AUTOPILOT1,
+                param_name,
+                0.0,
+                mavutil.mavlink.MAV_PARAM_TYPE_REAL32,
+            )
+        logger.info("Requesting RTL_ALT(_M)=0 (RTL should hold current altitude, no forced climb)")
 
     def _check_search_arrival(self) -> None:
         with self._lock:
@@ -283,6 +299,19 @@ class MAVLinkManager:
                 # severity <= 4 is ERROR/CRITICAL/ALERT/EMERGENCY in MAV_SEVERITY
                 log = logger.warning if msg.severity <= 4 else logger.info
                 log("SITL STATUSTEXT: %s", text)
+                return
+            elif msg_type == "PARAM_VALUE":
+                # ArduPilot echoes every applied PARAM_SET back as PARAM_VALUE
+                # - this is the actual confirmation that RTL_ALT(_M)=0 took,
+                # since PARAM_SET itself is fire-and-forget over UDP.
+                param_id = msg.param_id
+                if isinstance(param_id, bytes):
+                    param_id = param_id.decode(errors="replace")
+                param_id = param_id.rstrip("\x00")
+                if param_id in ("RTL_ALT_M", "RTL_ALT") and abs(msg.param_value) < 0.5:
+                    if not self._rtl_alt_configured:
+                        logger.info("Confirmed %s=0 (RTL will hold current altitude)", param_id)
+                    self._rtl_alt_configured = True
                 return
             else:
                 return
@@ -384,13 +413,17 @@ class MAVLinkManager:
             takeoff_result = self._ack_to_result(takeoff_ack, "Search takeoff")
             if not takeoff_result.success:
                 return takeoff_result
-            # ArduCopter can reject DO_REPOSITION while still flagged
-            # "landed" for the first moment of the takeoff sequence — wait
-            # for actual liftoff before sending the travel command.
-            liftoff_threshold = min(1.5, target_alt * 0.3)
-            lifted = self._wait_until(lambda: (self._state.alt_relative or 0) > liftoff_threshold, timeout=15.0)
-            if not lifted:
-                return CommandResult(success=False, message="Search failed: vehicle did not leave the ground in time")
+            # Climb to (near) the full search altitude before moving
+            # horizontally, so the vehicle goes straight up then straight
+            # across rather than climbing and translating at the same time.
+            # (A small liftoff-only wait isn't enough here: DO_REPOSITION's
+            # altitude target would just get blended with the still-climbing
+            # NAV_TAKEOFF, moving and climbing simultaneously.)
+            climb_target = target_alt * 0.95
+            climb_timeout = min(max(15.0, target_alt * 1.2), 60.0)
+            climbed = self._wait_until(lambda: (self._state.alt_relative or 0) >= climb_target, timeout=climb_timeout)
+            if not climbed:
+                return CommandResult(success=False, message="Search failed: vehicle did not reach search altitude in time")
 
         ack = self._send_command_int(
             mavutil.mavlink.MAV_CMD_DO_REPOSITION,

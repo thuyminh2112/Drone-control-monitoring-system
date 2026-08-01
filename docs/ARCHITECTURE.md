@@ -15,9 +15,13 @@
    matched `threading.Event` + result slot. The thread also tracks the last
    heartbeat timestamp — no heartbeat for 5s means `connected = False`, and
    the thread will keep trying to (re)connect. On each (re)connect it also
-   sends `PARAM_SET RTL_ALT=0` once (`_ensure_rtl_alt_configured`) so
-   ArduCopter's RTL holds the current altitude on the way home instead of
-   first climbing to its default ~15m RTL altitude.
+   retries `PARAM_SET RTL_ALT_M=0` / `RTL_ALT=0` (`_ensure_rtl_alt_configured`)
+   until confirmed via the resulting `PARAM_VALUE` echo — PARAM_SET is
+   fire-and-forget over UDP, and the parameter's exact name/units vary by
+   ArduCopter build (`RTL_ALT_M` in meters on newer builds post metric-units
+   migration, `RTL_ALT` in centimeters on older ones), so both are set and
+   whichever echoes back at 0 marks it done. This makes RTL hold the current
+   altitude on the way home instead of first climbing to its default ~15m.
 
 3. **`redis_bridge.py`** — every telemetry tick (~2 Hz) the normalized
    `TelemetryState` is:
