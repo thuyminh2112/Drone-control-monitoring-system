@@ -20,7 +20,6 @@ function QuadIcon({ size = 44 }: { size?: number }) {
 export function VehicleCard({ iconSize = 126 }: { iconSize?: number }) {
   return (
     <div className="card vehicle-card">
-      <div className="metric-label">Vehicle</div>
       <div className="vehicle-name">vehicle-1</div>
       <div className="vehicle-frame-icon">
         <QuadIcon size={iconSize} />

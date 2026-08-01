@@ -469,7 +469,7 @@ button {
 
 .compass-vehicle-row {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: 2.4fr 2.6fr;
   gap: var(--space-3);
   align-items: stretch;
 }
