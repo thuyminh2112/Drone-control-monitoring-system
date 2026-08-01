@@ -6,6 +6,7 @@
   --color-text: #262521;
   --color-text-muted: #6b6a63;
   --color-value-emphasis: #262521;
+  --color-info: #3a7ebf;
   --color-accent: #c15f3c;
   --color-accent-hover: #a94f30;
   --color-accent-contrast: #ffffff;
@@ -43,6 +44,7 @@
     --color-text: #e8ece7;
     --color-text-muted: #7c8a7d;
     --color-value-emphasis: #cfe8e0;
+    --color-info: #7ec8f0;
     --color-accent: #e0824a;
     --color-accent-hover: #ec9861;
     --color-accent-contrast: #0a0d0b;

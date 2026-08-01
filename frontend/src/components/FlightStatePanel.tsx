@@ -104,7 +104,9 @@ export function FlightStatePanel({ telemetry, wsStatus }: { telemetry: Telemetry
           </div>
           <div>
             <div className="metric-label">Altitude (AGL)</div>
-            <div className="metric-value">{telemetry?.alt_relative != null ? `${telemetry.alt_relative.toFixed(1)} m` : "—"}</div>
+            <div className="metric-value metric-value-info">
+              {telemetry?.alt_relative != null ? `${telemetry.alt_relative.toFixed(1)} m` : "—"}
+            </div>
             <div className="telemetry-subvalue">vertical speed —</div>
           </div>
 

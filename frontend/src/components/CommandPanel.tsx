@@ -62,7 +62,7 @@ export function CommandPanel({
           Land
         </button>
         <button
-          className={flightMode === "RTL" ? "btn btn-active command-grid-wide" : "btn btn-danger command-grid-wide"}
+          className={flightMode === "RTL" ? "btn btn-active command-grid-span2" : "btn btn-danger command-grid-span2"}
           disabled={!connected || !armed || busy}
           onClick={() => setPending("rtl")}
         >
