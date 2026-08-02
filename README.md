@@ -46,6 +46,24 @@ ArduCopter SITL --MAVLink/UDP--> mavlink_client.py (bg thread) --> redis_bridge.
 See `docs/ARCHITECTURE.md` for the full design rationale and
 `docs/RUNBOOK.md` for a manual verification checklist.
 
+## Tech stack
+
+**Backend** (`backend/`)
+- [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) — REST + WebSocket server
+- [pymavlink](https://github.com/ArduPilot/pymavlink) — MAVLink protocol client to ArduCopter SITL
+- [Redis](https://redis.io/) (`redis-py`) — pub/sub + latest-state cache between MAVLink ingestion and WebSocket delivery
+- [Pydantic](https://docs.pydantic.dev/) — telemetry/command schemas and validation
+
+**Frontend** (`frontend/`)
+- [React](https://react.dev/) 18 + [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vite.dev/) — dev server and build
+- [Leaflet](https://leafletjs.com/) — used directly (no `react-leaflet` wrapper) for the mission-planning and live-tracking map
+- Hand-rolled CSS (custom properties + utility classes) — no CSS framework or component library
+
+**Simulated vehicle**
+- [ArduPilot SITL](https://ardupilot.org/dev/docs/sitl-simulator-software-in-the-loop.html) running ArduCopter, driven over MAVLink/UDP
+- [MAVProxy](https://ardupilot.org/mavproxy/) — relays the SITL vehicle's MAVLink link to the backend's UDP port
+
 ## Features
 
 Dashboard:
@@ -100,97 +118,18 @@ venv at `/Users/nghia/ardupilot-venv` (see `scripts/start_sitl.sh`, which
 also accepts `ARDUPILOT_DIR`/`ARDUPILOT_VENV` env var overrides) — adjust
 if your machine differs.
 
-## Setup & running
+## Quick start
 
-Four processes, in four terminals: Redis, SITL, backend, frontend. Use the
-`scripts/start_*.sh` wrappers below, or the manual commands underneath each
-one if you want more control (e.g. SITL's `--console --map` GUI windows).
+Four processes, in four terminals — see `docs/RUNBOOK.md` for full
+first-time setup, manual commands, and a verification checklist.
 
-### 1. Redis
-
-```bash
-brew install redis   # once
-redis-server --port 6379
-```
-
-Or: `scripts/start_redis.sh`. Verify with `redis-cli ping` → `PONG`.
-
-### 2. ArduPilot SITL (ArduCopter)
-
-Run this in your own Terminal window — it opens real GUI windows, so don't
-run it through anything headless (e.g. SSH):
-
-```bash
-source /Users/nghia/ardupilot-venv/bin/activate
-cd /Users/nghia/ardupilot
-Tools/autotest/sim_vehicle.py -v ArduCopter -L CMAC --console --map --out=udp:127.0.0.1:14560
-```
-
-Or: `scripts/start_sitl.sh`. Add `-w` on the very first run only, to wipe
-EEPROM to defaults. MAVProxy must actually be running (don't pass
-`--no-mavproxy`) — the `--out=udp:...` relay only works because MAVProxy
-forwards the vehicle's primary link to that extra UDP output.
-
-This opens two windows worth keeping visible while you operate the
-dashboard:
-- **MAVProxy console** — text log of heartbeats, mode changes, and arming
-  messages, useful for cross-checking the dashboard.
-- **Map window** — a live map with the vehicle icon and its GPS track.
-
-### 3. Backend
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-```
-
-Or: `scripts/start_backend.sh` (creates the venv and copies `.env`
-automatically on first run).
-
-Verify: `curl http://localhost:8000/health` and
-`curl http://localhost:8000/api/drone/state` return JSON once SITL has
-sent a few heartbeats.
-
-`.env` (see `backend/.env.example`) controls the MAVLink connection
-string, Redis URL, CORS origin, heartbeat timeout, and command ACK
-timeout — defaults match the SITL/Redis commands above, so no changes are
-needed for local use.
-
-### 4. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Or: `scripts/start_frontend.sh`. Open **http://localhost:5173** — Vite
-proxies `/api` and `/ws` to the backend on port 8000.
-
-## Verification checklist
-
-- [ ] `redis-cli ping` → `PONG`
-- [ ] MAVProxy console shows periodic heartbeat / GPS lock messages
-- [ ] `redis-cli SUBSCRIBE drone:telemetry` (separate terminal) streams JSON
-- [ ] `redis-cli GET drone:latest_state` returns the latest snapshot
-- [ ] Dashboard shows "Connected", live-updating battery/GPS/altitude
-- [ ] Browser DevTools → Network → WS frames arriving ~1-2 Hz
-- [ ] **Arm** → MAVProxy prints "ARMING MOTORS"; dashboard Armed flips
-- [ ] **Takeoff** → vehicle climbs in MAVProxy output; dashboard altitude
-      increases
-- [ ] Plan a **Waypoint Mission**, **Start Mission** → vehicle switches to
-      AUTO and flies the route on the map
-- [ ] **RTL** → flight mode changes to RTL in both MAVProxy and dashboard,
-      vehicle returns and lands
-- [ ] **Disarm** → motors disarm, dashboard reflects it
-- [ ] Kill SITL → dashboard shows "Disconnected" within ~5s, backend keeps
-      retrying, reconnects cleanly when SITL restarts
-
-See `docs/RUNBOOK.md` for the same checklist with more detail.
+1. **Redis** — `scripts/start_redis.sh`
+2. **ArduPilot SITL** — `scripts/start_sitl.sh` (run in its own Terminal
+   window; opens real GUI windows, so not over SSH/headless)
+3. **Backend** — `scripts/start_backend.sh`, then verify with
+   `curl http://localhost:8000/health`
+4. **Frontend** — `scripts/start_frontend.sh`, then open
+   **http://localhost:5173**
 
 ## Known ArduCopter/SITL behavior (not bugs)
 
