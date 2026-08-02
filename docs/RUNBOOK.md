@@ -1,6 +1,15 @@
 # Runbook — run everything locally (macOS)
 
-Four terminals: Redis, SITL, backend, frontend.
+**Four separate Terminal windows, left running the whole session: Redis,
+SITL, backend, frontend.** Closing any one of those windows kills that
+process — the dashboard will show "Disconnected" (SITL down) or fail to
+load entirely (backend/frontend down) until it's restarted. Start order
+doesn't matter beyond "all four eventually up"; each waits/retries for the
+others.
+
+The commands below split into a **first-time setup** block (creates the
+venv, installs deps) and an **every time after that** block (just activate
+and run) — after the first run, use the shorter block.
 
 ## 1. Redis
 
@@ -14,7 +23,7 @@ Verify: `redis-cli ping` → `PONG`.
 ## 2. ArduPilot SITL (ArduCopter)
 
 Run this in your own Terminal (it opens real GUI windows — don't run it
-through anything headless):
+through anything headless, e.g. SSH):
 
 ```bash
 source /Users/nghia/ardupilot-venv/bin/activate   # sim_vehicle.py's deps (pexpect, MAVProxy, pymavlink) live here
@@ -30,13 +39,15 @@ running — it opens two windows you can watch live:
 - **MAVProxy console** — text log of heartbeats, mode changes, and arming
   messages, useful for cross-checking the dashboard.
 - **Map window** — a live map with the vehicle icon and its GPS track, so
-  you can visually watch the drone move during Takeoff/RTL.
+  you can visually watch the drone move during Takeoff/RTL/missions.
 
 If no window appears, `sim_vehicle.py` is being run without a display
 (e.g. over SSH or inside a headless shell) — it needs an actual local
 Terminal session on your Mac to open GUI windows.
 
 ## 3. Backend
+
+First time only (creates the venv, installs deps, creates `.env`):
 
 ```bash
 cd backend
@@ -47,10 +58,25 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-Verify: `curl http://localhost:8000/api/drone/state` returns JSON telemetry
-once SITL has sent a few heartbeats.
+Every time after that, in a fresh Terminal window:
+
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+(equivalently: `scripts/start_backend.sh`, which auto-detects whether the
+venv/`.env` already exist and only does first-time setup if needed.)
+
+Verify: `curl http://localhost:8000/health` → `{"status":"ok"}`, and
+`curl http://localhost:8000/api/drone/state` returns JSON telemetry once
+SITL has sent a few heartbeats. `curl: (7) Failed to connect` means this
+step isn't actually running — check this Terminal window is still open.
 
 ## 4. Frontend
+
+First time only (installs deps):
 
 ```bash
 cd frontend
@@ -58,11 +84,23 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Every time after that, in a fresh Terminal window:
+
+```bash
+cd frontend
+npm run dev
+```
+
+(equivalently: `scripts/start_frontend.sh`.)
+
+Open http://localhost:5173 — if that port's busy (an old dev server still
+running from a previous session), Vite prints the fallback port it picked
+instead; use that one, or kill the stale process holding 5173.
 
 ## Manual verification checklist
 
 - [ ] `redis-cli ping` → `PONG`
+- [ ] `curl http://localhost:8000/health` → `{"status":"ok"}`
 - [ ] MAVProxy console shows periodic heartbeat / GPS lock messages
 - [ ] `redis-cli SUBSCRIBE drone:telemetry` (separate terminal) shows JSON
       messages streaming
@@ -71,8 +109,11 @@ Open http://localhost:5173.
 - [ ] Browser DevTools → Network → WS frames arriving ~1-2 Hz
 - [ ] Click **Arm** → MAVProxy console prints "ARMING MOTORS"; dashboard
       Armed indicator flips
-- [ ] Click **Takeoff** (with altitude) → vehicle climbs in MAVProxy
-      output; dashboard altitude increases
+- [ ] Click **Takeoff** → vehicle climbs straight to the default 10m in
+      MAVProxy output; dashboard altitude increases
+- [ ] Toggle **Waypoint Mission**, click a few map points, **Start
+      Mission** → flight mode changes to AUTO, vehicle flies the plotted
+      route in both MAVProxy/map window and dashboard
 - [ ] Click **RTL** → flight mode changes to RTL in both MAVProxy and
       dashboard, vehicle returns and lands
 - [ ] Click **Disarm** → motors disarm, dashboard reflects it
