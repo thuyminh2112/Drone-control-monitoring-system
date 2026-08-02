@@ -8,6 +8,8 @@ framed as a Search & Rescue (SAR) sortie monitor. A simulated ArduCopter
 survivors. An operator watches live telemetry and issues flight commands —
 including a full multi-waypoint mission — from a web dashboard.
 
+![Dashboard mid-mission: AUTO mode, armed, flying a 4-waypoint route over CMAC](docs/images/dashboard.png)
+
 ## Scenario
 
 After a disaster (flood, earthquake, etc.) roads may be impassable and the
