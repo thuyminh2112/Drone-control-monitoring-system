@@ -11,6 +11,46 @@ The commands below split into a **first-time setup** block (creates the
 venv, installs deps) and an **every time after that** block (just activate
 and run) — after the first run, use the shorter block.
 
+## Quick deploy (everything already installed)
+
+Once Redis, the backend venv, and frontend `node_modules` exist from a
+prior first-time setup, this is the fastest way to bring the whole system
+up: three commands, three Terminal windows. (Redis is assumed already
+running per [step 1](#1-redis) below — start it first if it isn't.)
+
+**Terminal A — Backend:**
+
+```bash
+cd /Volumes/Minh/GITHUB/Drone-control-monitoring-system/backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal B — Frontend:**
+
+```bash
+cd /Volumes/Minh/GITHUB/Drone-control-monitoring-system/frontend
+npm run dev
+```
+
+Open the URL it prints (should be http://localhost:5173).
+
+**Terminal C — ArduPilot SITL** (needs a real GUI Terminal — not
+SSH/headless):
+
+```bash
+source /Users/nghia/ardupilot-venv/bin/activate
+cd /Users/nghia/ardupilot
+Tools/autotest/sim_vehicle.py -v ArduCopter -L CMAC --console --map --out=udp:127.0.0.1:14560
+```
+
+Leave all three (plus Redis) running for the whole session — closing any
+one of these windows kills that process and the dashboard loses whatever
+that piece provided (see the warning above). Once SITL's MAVProxy console
+shows heartbeats, the dashboard should flip to "Connected" within a few
+seconds. If any step fails (e.g. `.venv` or `node_modules` missing), fall
+back to the detailed first-time setup in the sections below.
+
 ## 1. Redis
 
 ```bash
