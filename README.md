@@ -100,23 +100,6 @@ first waypoint. With "Return to Home" enabled, a trailing
 `MAV_CMD_NAV_RETURN_TO_LAUNCH` item makes the vehicle fly home and land on
 its own after the last waypoint.
 
-## Prerequisites
-
-- **macOS** (the SITL/venv paths below assume macOS; adjust for other
-  platforms)
-- Python 3.10+ and Node.js 18+
-- [Homebrew](https://brew.sh) (for Redis)
-- [ArduPilot](https://ardupilot.org/dev/docs/building-setup-mac.html)
-  cloned and built (`build/sitl/bin/arducopter`), with a **separate**
-  Python venv containing `pexpect`, `MAVProxy`, and `pymavlink` for
-  `sim_vehicle.py`'s tooling (the system/backend Python does not need
-  these)
-
-This repo assumes ArduPilot is at `/Users/nghia/ardupilot` and its SITL
-venv at `/Users/nghia/ardupilot-venv` (see `scripts/start_sitl.sh`, which
-also accepts `ARDUPILOT_DIR`/`ARDUPILOT_VENV` env var overrides) — adjust
-if your machine differs.
-
 ## Quick start
 
 Four processes, in four terminals — see `docs/RUNBOOK.md` for full
