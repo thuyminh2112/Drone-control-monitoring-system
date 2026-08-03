@@ -10,6 +10,10 @@ including a full multi-waypoint mission — from a web dashboard.
 
 ![Dashboard mid-mission: AUTO mode, armed, flying a 4-waypoint route over CMAC](docs/images/dashboard.png)
 
+## Demo
+
+[Demo video](https://youtu.be/BnwONeTowAk)
+
 ## Scenario
 
 After a disaster (flood, earthquake, etc.) roads may be impassable and the
