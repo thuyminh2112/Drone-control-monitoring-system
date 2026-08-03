@@ -25,12 +25,7 @@ degrades, or the sortie needs to abort.
 
 ## Architecture
 
-```
-ArduCopter SITL --MAVLink/UDP--> mavlink_client.py (bg thread) --> redis_bridge.py --Redis pub/sub--> /ws/telemetry --> React dashboard
-                                         ^
-                                         | (command queue, blocking call from asyncio.to_thread)
-                    routers/commands.py (POST /api/drone/arm|disarm|takeoff|land|rtl|search|mission/start|mission/cancel)
-```
+<img src="docs/images/architecture.png" alt="System architecture: Operator through React + TypeScript frontend, over WebSocket to a FastAPI backend, which writes to Redis and talks MAVLink (via pyMAVLink) to ArduPilot SITL and the virtual drone" width="420">
 
 - **Backend** (FastAPI): a background thread owns the MAVLink connection to
   SITL end-to-end — it reads telemetry and sends commands (pymavlink
