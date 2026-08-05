@@ -15,33 +15,35 @@ and run) — after the first run, use the shorter block.
 
 Once Redis, the backend venv, and frontend `node_modules` exist from a
 prior first-time setup, this is the fastest way to bring the whole system
-up: three commands, three Terminal windows. (Redis is assumed already
-running per [step 1](#1-redis) below — start it first if it isn't.)
-
-**Terminal A — Backend:**
+up: four commands, four Terminal windows. 
+**Terminal A — Redis:**
 
 ```bash
-cd /Volumes/Minh/GITHUB/Drone-control-monitoring-system/backend
-source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
+cd scripts.start_redis.sh
 ```
 
-**Terminal B — Frontend:**
+**Terminal B — Backend:**
 
 ```bash
-cd /Volumes/Minh/GITHUB/Drone-control-monitoring-system/frontend
-npm run dev
+cd scripts/start_backend.sh
+```
+
+**Terminal C — Frontend:**
+
+```bash
+cd scripts/start_frontend.sh
 ```
 
 Open the URL it prints (should be http://localhost:5173).
 
-**Terminal C — ArduPilot SITL** (needs a real GUI Terminal — not
+**Terminal D — ArduPilot SITL** (needs a real GUI Terminal — not
 SSH/headless):
 
 ```bash
-source /Users/nghia/ardupilot-venv/bin/activate
-cd /Users/nghia/ardupilot
-Tools/autotest/sim_vehicle.py -v ArduCopter -L CMAC --console --map --out=udp:127.0.0.1:14560
+ARDUPILOT_DIR=/Users/YOUR_USER_NAME/ardupilot \
+ARDUPILOT_VENV=/Users/YOUR_USER_NAMEn/ardupilot-venv \
+cd scripts/start_sitl.sh -w
+
 ```
 
 Leave all three (plus Redis) running for the whole session — closing any
